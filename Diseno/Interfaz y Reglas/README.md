@@ -68,7 +68,7 @@ Ambos incluirán:
 
 ### 2.4 Barra superior
 
-Elementos previstos:
+Elementos:
 
 - Temporizador.
 - Nivel de dificultad.
