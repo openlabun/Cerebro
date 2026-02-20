@@ -721,3 +721,133 @@ console.log("Evaluación del tablero:", evaluarTablero);
 
 let resultado = estaResuelto(puzzle);
 console.log("¿El tablero está resuelto?", resultado);
+
+
+//=====================
+//validar movimiento del usuario
+//=====================
+function esMovimientoValido(board, row, col, num) {
+
+    if (num < 1 || num > 9) return false;
+
+    // Verificar fila
+    for (let c = 0; c < 9; c++) {
+        if (board[row][c] === num && c !== col) {
+            return false;
+        }
+    }
+
+    // Verificar columna
+    for (let r = 0; r < 9; r++) {
+        if (board[r][col] === num && r !== row) {
+            return false;
+        }
+    }
+
+    // Verificar bloque 3x3
+    let startRow = Math.floor(row / 3) * 3;
+    let startCol = Math.floor(col / 3) * 3;
+
+    for (let r = startRow; r < startRow + 3; r++) {
+        for (let c = startCol; c < startCol + 3; c++) {
+            if (board[r][c] === num && (r !== row || c !== col)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+//=====================================
+// funcion principal para jugar
+//=====================================
+
+//IMPORTANTE: Esta función asume que el tableroActual es una copia del puzzleInicial y que se mantiene actualizado con los movimientos del usuario. El puzzleInicial se utiliza para verificar qué celdas son fijas y no deben ser modificadas.
+let tableroActual = puzzle.map(r => [...r]);
+function introducirNumero(tableroActual, puzzleInicial, row, col, num) {
+
+    // Validar índices
+    if (row < 0 || row > 8 || col < 0 || col > 8) {
+        return { ok: false, mensaje: "Posición inválida" };
+    }
+
+    //  Verificar que no sea celda original
+    if (puzzleInicial[row][col] !== 0) {
+        return { ok: false, mensaje: "No puedes modificar una celda fija" };
+    }
+
+    // Permitir borrar
+    if (num === 0) {
+        tableroActual[row][col] = 0;
+        return { ok: true, mensaje: "Celda borrada" };
+    }
+
+    // Validar rango
+    if (num < 1 || num > 9) {
+        return { ok: false, mensaje: "Número inválido (1-9)" };
+    }
+
+    // Validar reglas Sudoku
+    if (!esMovimientoValido(tableroActual, row, col, num)) {
+        return { ok: false, mensaje: "Movimiento viola reglas del Sudoku" };
+    }
+
+    // Aplicar movimiento
+    tableroActual[row][col] = num;
+
+    return { ok: true, mensaje: "Movimiento aplicado" };
+}
+
+//=====================================
+// Ejemplo de uso de introducirNumero
+//=====================================
+let response= introducirNumero(tableroActual, puzzle, 0, 2, 5);
+
+if (!response.ok) {
+    console.log("Error:", response.mensaje);
+} else {
+    console.log("valido", response.mensaje);
+    console.table(tableroActual);
+}
+//=====================================
+// función para dar pista al usuario
+//=====================================
+
+function darPista(tableroActual, tableroSolucion) {
+
+    for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+
+            // Si está vacío o incorrecto
+            if (tableroActual[r][c] !== tableroSolucion[r][c]) {
+
+                tableroActual[r][c] = tableroSolucion[r][c];
+
+                return {
+                    ok: true,
+                    row: r,
+                    col: c,
+                    valor: tableroSolucion[r][c],
+                    mensaje: `Pista aplicada en (${r}, ${c})`
+                };
+            }
+        }
+    }
+
+    return {
+        ok: false,
+        mensaje: "El tablero ya está completo"
+    };
+}
+//=====================================
+// Ejemplo de uso de darPista
+//=====================================
+let pista = darPista(tableroActual, solucion);
+
+if (pista.ok) {
+    console.log("Pista:", pista);
+    console.table(tableroActual);
+} else {
+    console.log("Nada que completar");
+}
