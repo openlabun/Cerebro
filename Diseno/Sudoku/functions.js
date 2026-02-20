@@ -804,7 +804,7 @@ function introducirNumero(tableroActual, puzzleInicial, row, col, num) {
 //=====================================
 // Ejemplo de uso de introducirNumero
 //=====================================
-let response= introducirNumero(tableroActual, puzzle, 0, 2, 5);
+let response= introducirNumero(tableroActual, puzzle, 4, 2, 3);
 
 if (!response.ok) {
     console.log("Error:", response.mensaje);
@@ -857,3 +857,126 @@ if (pista.ok) {
 } else {
     console.log("Nada que completar");
 }
+
+
+//======================================
+//Notas
+//======================================
+
+function crearNotasVacias() {
+    return Array.from({ length: 9 }, () =>
+        Array.from({ length: 9 }, () => new Set())
+    );
+}
+//======================================
+// Función para agregar o eliminar nota en una celda
+//======================================
+function toggleNota(notas, tableroActual, row, col, num) {
+
+    // Validar posición
+    if (row < 0 || row > 8 || col < 0 || col > 8) {
+        return { ok: false, mensaje: "Posición inválida" };
+    }
+
+    // No permitir notas si ya hay número definitivo
+    if (tableroActual[row][col] !== 0) {
+        return { ok: false, mensaje: "La celda ya tiene un número fijo" };
+    }
+
+    // Validar rango
+    if (num < 1 || num > 9) {
+        return { ok: false, mensaje: "Las notas deben estar entre 1 y 9" };
+    }
+
+    let celdaNotas = notas[row][col];
+
+    // Si ya existe → eliminar
+    if (celdaNotas.has(num)) {
+        celdaNotas.delete(num);
+        return {
+            ok: true,
+            accion: "eliminada",
+            totalNotas: celdaNotas.size
+        };
+    }
+
+    // Límite máximo 9 notas
+    if (celdaNotas.size >= 9) {
+        return {
+            ok: false,
+            mensaje: "Máximo 9 notas por celda"
+        };
+    }
+
+    // Agregar nota
+    //verificar si el número es candidato válido antes de agregarlo como nota
+    if (!esMovimientoValido(tableroActual, row, col, num)) {
+    return { ok: false, mensaje: "No es candidato válido" };
+}
+    celdaNotas.add(num);
+
+    return {
+        ok: true,
+        accion: "agregada",
+        totalNotas: celdaNotas.size
+    };
+}
+
+//=====================================
+// limpiar celda (borrar número definitivo o notas)
+//=====================================
+//IMPORTANTE: SIEMPRE EJECUTAR ESTA FUNCION ANTES DE INTRODUCIR UN NÚMERO DEFINITIVO PARA ASEGURAR QUE LA CELDA ESTÉ LIMPIA DE NOTAS Y NÚMEROS ANTERIORES.
+function limpiarNotasCelda(notas, row, col) {
+
+    // Validar posición
+    if (row < 0 || row > 8 || col < 0 || col > 8) {
+        return { ok: false, mensaje: "Posición inválida" };
+    }
+
+    // Limpiar todas las notas
+    notas[row][col].clear();
+
+    return {
+        ok: true,
+        mensaje: "Notas eliminadas",
+        totalNotas: 0
+    };
+}
+//=====================================
+//imprimir notas
+//=====================================
+function imprimirNotasComoTablero(notas) {
+    for (let fila = 0; fila < 9; fila++) {
+        let filaTexto = "";
+
+        for (let col = 0; col < 9; col++) {
+            const notasCelda = [...notas[fila][col]].sort((a, b) => a - b);
+            
+            if (notasCelda.length === 0) {
+                filaTexto += "[ ] ";
+            } else {
+                filaTexto += "[" + notasCelda.join("") + "] ";
+            }
+        }
+
+        console.log(filaTexto);
+    }
+}
+//=====================================
+// Ejemplo de uso de Notas y limpieza de notas relacionadas
+//=====================================
+
+//crear notas vacías
+let notas = crearNotasVacias();
+toggleNota(notas, tableroActual, 0, 2, 7);
+
+let nota = toggleNota(notas, tableroActual, 0, 2, 5);
+
+if (!nota.ok) {
+    console.log("Error:", nota.mensaje);
+} else {
+    console.log("Nota", nota.accion);
+}
+imprimirNotasComoTablero(notas);
+limpiarNotasCelda(notas, 0, 2);
+imprimirNotasComoTablero(notas);
