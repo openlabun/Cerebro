@@ -16,18 +16,20 @@
     <header class="topbar">
       <a class="logo" href="#">Cere<span>bro</span></a>
       <nav>
+        <button type="button" class="nav-btn active" id="tab-inicio">Inicio</button>
+        <button type="button" class="nav-btn" id="tab-jugar">Jugar</button>
         <a class="nav-btn" href="#como-jugar">Cómo jugar</a>
         <a class="nav-btn" href="#modos">Modos</a>
         <a class="nav-btn" href="#ventajas">Ventajas</a>
       </nav>
       <div class="topbar-actions">
-        <button id="theme-toggle" class="btn ghost" type="button" aria-label="Cambiar tema">Tema: Sistema</button>
+        <button id="theme-toggle" class="btn ghost" type="button">Tema: Sistema</button>
         <button class="btn ghost" type="button">Iniciar sesión</button>
       </div>
     </header>
 
     <main>
-      <section class="hero">
+      <section class="hero" id="inicio-tab">
         <div class="hero-text">
           <p class="eyebrow">Sudoku</p>
           <h1>Entrena tu mente con un Sudoku bonito y moderno</h1>
@@ -36,43 +38,50 @@
             progreso y compite contigo mismo.
           </p>
           <div class="hero-actions">
-            <button class="btn primary">Jugar ahora</button>
+            <button class="btn primary" id="play-now" type="button">Jugar ahora</button>
             <a class="btn light" href="#como-jugar">Cómo jugar</a>
-          </div>
-          <div class="stats">
-            <article>
-              <strong>120k+</strong>
-              <span>partidas jugadas</span>
-            </article>
-            <article>
-              <strong>6 niveles</strong>
-              <span>de dificultad</span>
-            </article>
-            <article>
-              <strong>3 min</strong>
-              <span>tiempo promedio</span>
-            </article>
           </div>
         </div>
 
-        <div class="board-card" aria-label="Vista previa tablero sudoku">
+        <div class="board-card compact" aria-label="Letrero">
+          <div class="board sign-board" id="sign-board"></div>
+        </div>
+      </section>
+
+      <section class="game-tab hidden" id="juego-tab">
+        <div class="game-header">
+          <h2>Partida actual</h2>
+          <button class="btn light" id="back-home" type="button">Volver al inicio</button>
+        </div>
+
+        <div class="board-card" aria-label="Tablero sudoku">
           <div class="board-header">
-            <span>Dificultad: Medio</span>
+            <div class="difficulty-wrap">
+              <label for="difficulty-select">Dificultad:</label>
+              <select id="difficulty-select" class="difficulty-select" aria-label="Seleccionar dificultad"></select>
+              <span id="difficulty-label" class="difficulty-label">Dificultad: Intermedio</span>
+            </div>
             <span id="timer">00:00</span>
           </div>
           <div class="board" id="board"></div>
+          <div class="progress-wrapper" aria-label="Progreso del tablero">
+            <div class="progress-track">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <p id="progress-text" class="progress-text">0/0 celdas correctas (0%)</p>
+          </div>
           <p id="status" class="status"></p>
           <div id="keypad" class="board-actions" aria-label="Teclado numérico"></div>
           <div class="board-actions controls">
-            <button id="hint" class="chip">Pista</button>
-            <button id="clear-cell" class="chip">Borrar</button>
+            <button id="hint" class="chip" type="button">Pista</button>
+            <button id="clear-cell" class="chip" type="button">Borrar</button>
           </div>
         </div>
       </section>
 
       <section id="como-jugar" class="how-to-play">
         <h2>Cómo jugar Sudoku</h2>
-        <h3>3.1 Reglas básicas</h3>
+        <h3>Reglas básicas</h3>
         <ul>
           <li>Cada fila debe contener números del 1 al 9 sin repetirse.</li>
           <li>Cada columna debe contener números del 1 al 9 sin repetirse.</li>
@@ -81,7 +90,7 @@
           <li>El objetivo es completar el tablero correctamente.</li>
         </ul>
 
-        <h3>3.2 Modos de juego</h3>
+        <h3>Modos de juego</h3>
         <div class="mode-grid rules-modes">
           <article>
             <h4>Modo clásico</h4>
@@ -113,9 +122,7 @@
         <div class="mode-grid">
           <article>
             <h3>Clásico</h3>
-            <p>
-              Juega sudokus tradicionales con interfaz clara y sin distracciones.
-            </p>
+            <p>Juega sudokus tradicionales con interfaz clara y sin distracciones.</p>
           </article>
           <article>
             <h3>Racha diaria</h3>
