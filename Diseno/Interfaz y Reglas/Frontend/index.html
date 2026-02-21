@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sudoku Proposal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="logo" href="#">Cere<span>bro</span></a>
+      <nav>
+        <a class="nav-btn" href="#como-jugar">Cómo jugar</a>
+        <a class="nav-btn" href="#modos">Modos</a>
+        <a class="nav-btn" href="#ventajas">Ventajas</a>
+      </nav>
+      <div class="topbar-actions">
+        <button id="theme-toggle" class="btn ghost" type="button" aria-label="Cambiar tema">Tema: Sistema</button>
+        <button class="btn ghost" type="button">Iniciar sesión</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-text">
+          <p class="eyebrow">Sudoku</p>
+          <h1>Entrena tu mente con un Sudoku bonito y moderno</h1>
+          <p class="subtitle">
+            Una experiencia limpia, amigable y rápida. Juega por niveles, guarda
+            progreso y compite contigo mismo.
+          </p>
+          <div class="hero-actions">
+            <button class="btn primary">Jugar ahora</button>
+            <a class="btn light" href="#como-jugar">Cómo jugar</a>
+          </div>
+          <div class="stats">
+            <article>
+              <strong>120k+</strong>
+              <span>partidas jugadas</span>
+            </article>
+            <article>
+              <strong>6 niveles</strong>
+              <span>de dificultad</span>
+            </article>
+            <article>
+              <strong>3 min</strong>
+              <span>tiempo promedio</span>
+            </article>
+          </div>
+        </div>
+
+        <div class="board-card" aria-label="Vista previa tablero sudoku">
+          <div class="board-header">
+            <span>Dificultad: Medio</span>
+            <span id="timer">00:00</span>
+          </div>
+          <div class="board" id="board"></div>
+          <p id="status" class="status"></p>
+          <div id="keypad" class="board-actions" aria-label="Teclado numérico"></div>
+          <div class="board-actions controls">
+            <button id="hint" class="chip">Pista</button>
+            <button id="clear-cell" class="chip">Borrar</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="como-jugar" class="how-to-play">
+        <h2>Cómo jugar Sudoku</h2>
+        <h3>3.1 Reglas básicas</h3>
+        <ul>
+          <li>Cada fila debe contener números del 1 al 9 sin repetirse.</li>
+          <li>Cada columna debe contener números del 1 al 9 sin repetirse.</li>
+          <li>Cada subcuadro 3x3 debe contener números del 1 al 9 sin repetirse.</li>
+          <li>Los números iniciales no pueden modificarse.</li>
+          <li>El objetivo es completar el tablero correctamente.</li>
+        </ul>
+
+        <h3>3.2 Modos de juego</h3>
+        <div class="mode-grid rules-modes">
+          <article>
+            <h4>Modo clásico</h4>
+            <ul>
+              <li>Sin límite de tiempo.</li>
+              <li>Sin límite de errores.</li>
+            </ul>
+          </article>
+          <article>
+            <h4>Modo limitado</h4>
+            <ul>
+              <li>Número máximo de errores permitidos.</li>
+              <li>Fin de partida al excederlos.</li>
+            </ul>
+          </article>
+          <article>
+            <h4>Modo competitivo</h4>
+            <ul>
+              <li>Sin ayudas.</li>
+              <li>Temporizador obligatorio.</li>
+              <li>Orientado a rankings.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="modos" class="modes">
+        <h2>Elige tu modo favorito</h2>
+        <div class="mode-grid">
+          <article>
+            <h3>Clásico</h3>
+            <p>
+              Juega sudokus tradicionales con interfaz clara y sin distracciones.
+            </p>
+          </article>
+          <article>
+            <h3>Racha diaria</h3>
+            <p>Mantén tu progreso diario y desbloquea insignias por constancia.</p>
+          </article>
+          <article>
+            <h3>Contrarreloj</h3>
+            <p>Compite contra el reloj para mejorar velocidad y precisión.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="ventajas" class="benefits">
+        <h2>Por qué te va a encantar</h2>
+        <ul>
+          <li>Diseño visual relajado y pensado para sesiones largas.</li>
+          <li>Controles táctiles grandes para móvil y tablet.</li>
+          <li>Guardado automático de partida y estadísticas personales.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <p>© 2026 Cerebro</p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

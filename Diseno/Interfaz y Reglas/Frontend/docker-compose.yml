@@ -1,0 +1,9 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sudoku-frontend
+    ports:
+      - "4173:80"
+    restart: unless-stopped
