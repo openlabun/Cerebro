@@ -176,6 +176,28 @@ font-size: clamp(1.5rem, 4vw, 2.4rem);}
   .picker-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .profile-grid { grid-template-columns: 1fr; }
 }
+/* ===== Notas Sudoku ===== */
+.cell.has-notes {
+  padding: 0;
+}
 
+.notes-grid {
+  width: 86%;
+  height: 86%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: 2px;
+}
+
+.note {
+  font-size: clamp(0.55rem, 1.4vw, 0.85rem);
+  line-height: 1;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  opacity: 0.9;
+  user-select: none;
+}
 :root[data-theme="dark"] .streak-chip { color: #ffd8b3; }
 :root[data-theme="dark"] .calendar-day.active { color: #ffd7b8; }

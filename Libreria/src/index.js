@@ -991,9 +991,9 @@ function toggleNota(notas, tableroActual, row, col, num) {
 
     // Agregar nota
     //verificar si el número es candidato válido antes de agregarlo como nota
-    if (!esMovimientoValido(tableroActual, row, col, num)) {
-    return { ok: false, mensaje: "No es candidato válido" };
-}
+    //if (!esMovimientoValido(tableroActual, row, col, num)) {
+    //return { ok: false, mensaje: "No es candidato válido" };
+    //}
     celdaNotas.add(num);
 
     return {
