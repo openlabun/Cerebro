@@ -132,11 +132,11 @@ const seedsPorDificultad = {
     { seed: 902005, huecos: 40 },
   ],
   Profesional: [
-    { seed: 509429, huecos: 40 },
-    { seed: 347472, huecos: 40 },
-    { seed: 459935, huecos: 40 },
-    { seed: 890624, huecos: 40 },
-    { seed: 305046, huecos: 40 },
+    { seed: 542597, huecos: 60 },
+    { seed: 109576, huecos: 60 },
+    { seed: 336169, huecos: 60 },
+    { seed: 73866, huecos: 60 },
+    { seed: 81387, huecos: 60 }
   ],
 };
 

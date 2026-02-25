@@ -272,28 +272,34 @@ function tieneSolucionUnica(board) {
 // =====================================
 
 function crearPuzzle(board, vacios = 40, seed = 1234) {
-    let random = mulberry32(seed);
-    let puzzle = board.map(row => [...row]);
+  let random = mulberry32(seed);
+  let puzzle = board.map(row => [...row]);
 
-    let attempts = vacios;
+  let removed = 0;
+  const maxTries = vacios * 500; // ajusta si quieres (más = más lento, pero más probable llegar)
+  let tries = 0;
 
-    while (attempts > 0) {
-        let r = Math.floor(random() * 9);
-        let c = Math.floor(random() * 9);
+  while (removed < vacios && tries < maxTries) {
+    tries++;
 
-        if (puzzle[r][c] !== 0) {
-            let temp = puzzle[r][c];
-            puzzle[r][c] = 0;
+    let r = Math.floor(random() * 9);
+    let c = Math.floor(random() * 9);
 
-            if (!tieneSolucionUnica(puzzle)) {
-                puzzle[r][c] = temp;
-            } else {
-                attempts--;
-            }
-        }
+    if (puzzle[r][c] === 0) continue;
+
+    let temp = puzzle[r][c];
+    puzzle[r][c] = 0;
+
+    if (!tieneSolucionUnica(puzzle)) {
+      puzzle[r][c] = temp;
+    } else {
+      removed++;
     }
+  }
 
-    return puzzle;
+  // Si no se pudo llegar a 'vacios', devuelve lo mejor que se logró sin colgarse
+  // (opcional) console.log(`Se removieron ${removed}/${vacios} en ${tries} intentos`);
+  return puzzle;
 }
 
 //=====================================
@@ -301,306 +307,254 @@ function crearPuzzle(board, vacios = 40, seed = 1234) {
 //=====================================
 
 function analizarDificultad(board) {
+  let stats = {
+    single: 0,
+    hiddenSingle: 0,
+    nakedPair: 0,
+    nakedTriple: 0,
+    xwing: 0,
+    backtracking: 0
+  };
 
-    let stats = {
-        single: 0,
-        hiddenSingle: 0,
-        nakedPair: 0,
-        nakedTriple: 0,
-        xwing: 0,
-        backtracking: 0
-    };
+  let working = board.map(r => [...r]);
 
-    let working = board.map(r => [...r]);
+  function getCandidatesGrid() {
+    let grid = Array.from({ length: 9 }, () =>
+      Array.from({ length: 9 }, () => [])
+    );
 
-    function getCandidatesGrid() {
-        let grid = Array.from({ length: 9 }, () =>
-            Array.from({ length: 9 }, () => [])
-        );
-
-        for (let r = 0; r < 9; r++) {
-            for (let c = 0; c < 9; c++) {
-                if (working[r][c] === 0) {
-                    grid[r][c] = obtenerCandidatos(working, r, c);
-                }
-            }
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (working[r][c] === 0) {
+          grid[r][c] = obtenerCandidatos(working, r, c);
         }
-        return grid;
+      }
+    }
+    return grid;
+  }
+
+  // 🔒 Safety: evita loops infinitos por lógica/casos raros
+  const MAX_ITERS = 200;
+  let iter = 0;
+
+  let progreso = true;
+
+  while (progreso && iter < MAX_ITERS) {
+    iter++;
+    progreso = false;
+
+    let candidates = getCandidatesGrid();
+
+    // ==============================
+    // Single Candidate (sí cambia working)
+    // ==============================
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (working[r][c] === 0 && candidates[r][c].length === 1) {
+          working[r][c] = candidates[r][c][0];
+          stats.single++;
+          progreso = true; // ✅ solo cuando hay número colocado
+        }
+      }
     }
 
-    let progreso = true;
+    // recalcular candidatos luego de colocar singles
+    candidates = getCandidatesGrid();
 
-    while (progreso) {
-        progreso = false;
-        let candidates = getCandidatesGrid();
+    // ==============================
+    // Hidden Single (sí cambia working)
+    // ==============================
+    function hiddenSingleUnidad(celdas) {
+      let conteo = {};
+      for (let [r, c] of celdas) {
+        for (let n of candidates[r][c]) {
+          conteo[n] = conteo[n] ? conteo[n] + 1 : 1;
+        }
+      }
 
-        // ==============================
-        // Single Candidate
-        // ==============================
-        for (let r = 0; r < 9; r++) {
-            for (let c = 0; c < 9; c++) {
-                if (working[r][c] === 0 && candidates[r][c].length === 1) {
-                    working[r][c] = candidates[r][c][0];
-                    stats.single++;
-                    progreso = true;
-                }
+      for (let n in conteo) {
+        if (conteo[n] === 1) {
+          for (let [r, c] of celdas) {
+            if (candidates[r][c].includes(Number(n))) {
+              working[r][c] = Number(n);
+              stats.hiddenSingle++;
+              return true;
             }
+          }
         }
-
-        candidates = getCandidatesGrid();
-
-        // ==============================
-        // Hidden Single
-        // ==============================
-        function hiddenSingleUnidad(celdas) {
-            let conteo = {};
-            for (let [r, c] of celdas) {
-                for (let n of candidates[r][c]) {
-                    conteo[n] = conteo[n] ? conteo[n] + 1 : 1;
-                }
-            }
-
-            for (let n in conteo) {
-                if (conteo[n] === 1) {
-                    for (let [r, c] of celdas) {
-                        if (candidates[r][c].includes(Number(n))) {
-                            working[r][c] = Number(n);
-                            stats.hiddenSingle++;
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        }
-
-        // Filas
-        for (let r = 0; r < 9; r++) {
-            let celdas = [];
-            for (let c = 0; c < 9; c++)
-                if (working[r][c] === 0)
-                    celdas.push([r, c]);
-
-            if (hiddenSingleUnidad(celdas)) progreso = true;
-        }
-
-        // Columnas
-        for (let c = 0; c < 9; c++) {
-            let celdas = [];
-            for (let r = 0; r < 9; r++)
-                if (working[r][c] === 0)
-                    celdas.push([r, c]);
-
-            if (hiddenSingleUnidad(celdas)) progreso = true;
-        }
-
-        // Bloques
-        for (let br = 0; br < 3; br++) {
-            for (let bc = 0; bc < 3; bc++) {
-                let celdas = [];
-                for (let r = br * 3; r < br * 3 + 3; r++) {
-                    for (let c = bc * 3; c < bc * 3 + 3; c++) {
-                        if (working[r][c] === 0)
-                            celdas.push([r, c]);
-                    }
-                }
-                if (hiddenSingleUnidad(celdas)) progreso = true;
-            }
-        }
-
-        candidates = getCandidatesGrid();
-
-        // ==============================
-        // Naked Pair
-        // ==============================
-        function nakedPairUnidad(celdas) {
-            let pares = {};
-
-            for (let [r, c] of celdas) {
-                if (candidates[r][c].length === 2) {
-                    let key = candidates[r][c].join("-");
-                    pares[key] = pares[key] ? pares[key].concat([[r, c]]) : [[r, c]];
-                }
-            }
-
-            for (let key in pares) {
-                if (pares[key].length === 2) {
-                    let valores = key.split("-").map(Number);
-
-                    for (let [r, c] of celdas) {
-                        if (!pares[key].some(([rr, cc]) => rr === r && cc === c)) {
-                            let antes = candidates[r][c].length;
-                            candidates[r][c] = candidates[r][c].filter(x => !valores.includes(x));
-                            if (candidates[r][c].length < antes) {
-                                stats.nakedPair++;
-                                progreso = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // aplicar a filas, columnas y bloques
-        for (let r = 0; r < 9; r++) {
-            let celdas = [];
-            for (let c = 0; c < 9; c++)
-                if (working[r][c] === 0)
-                    celdas.push([r, c]);
-            nakedPairUnidad(celdas);
-        }
-
-        for (let c = 0; c < 9; c++) {
-            let celdas = [];
-            for (let r = 0; r < 9; r++)
-                if (working[r][c] === 0)
-                    celdas.push([r, c]);
-            nakedPairUnidad(celdas);
-        }
-
-        for (let br = 0; br < 3; br++) {
-            for (let bc = 0; bc < 3; bc++) {
-                let celdas = [];
-                for (let r = br * 3; r < br * 3 + 3; r++)
-                    for (let c = bc * 3; c < bc * 3 + 3; c++)
-                        if (working[r][c] === 0)
-                            celdas.push([r, c]);
-                nakedPairUnidad(celdas);
-            }
-        }
-
-        // ==============================
-        // Naked Triple  ✅ (AGREGADO)
-        // ==============================
-        function nakedTripleUnidad(celdas) {
-            if (celdas.length < 3) return;
-
-            const candCeldas = celdas
-                .map(([r, c]) => ({ r, c, cand: candidates[r][c] }))
-                .filter(x => x.cand.length >= 2 && x.cand.length <= 3);
-
-            if (candCeldas.length < 3) return;
-
-            const esSubconjunto = (arr, sup) => arr.every(v => sup.includes(v));
-
-            for (let i = 0; i < candCeldas.length; i++) {
-                for (let j = i + 1; j < candCeldas.length; j++) {
-                    for (let k = j + 1; k < candCeldas.length; k++) {
-                        const a = candCeldas[i];
-                        const b = candCeldas[j];
-                        const d = candCeldas[k];
-
-                        const union = Array.from(new Set([...a.cand, ...b.cand, ...d.cand]));
-                        if (union.length !== 3) continue;
-
-                        if (!esSubconjunto(a.cand, union) || !esSubconjunto(b.cand, union) || !esSubconjunto(d.cand, union)) {
-                            continue;
-                        }
-
-                        let huboCambio = false;
-
-                        for (let [r, c] of celdas) {
-                            if ((r === a.r && c === a.c) || (r === b.r && c === b.c) || (r === d.r && c === d.c)) continue;
-                            if (working[r][c] !== 0) continue;
-
-                            const antes = candidates[r][c].length;
-                            candidates[r][c] = candidates[r][c].filter(x => !union.includes(x));
-                            if (candidates[r][c].length < antes) huboCambio = true;
-                        }
-
-                        if (huboCambio) {
-                            stats.nakedTriple++;
-                            progreso = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        // aplicar a filas, columnas y bloques
-        for (let r = 0; r < 9; r++) {
-            let celdas = [];
-            for (let c = 0; c < 9; c++)
-                if (working[r][c] === 0)
-                    celdas.push([r, c]);
-            nakedTripleUnidad(celdas);
-        }
-
-        for (let c = 0; c < 9; c++) {
-            let celdas = [];
-            for (let r = 0; r < 9; r++)
-                if (working[r][c] === 0)
-                    celdas.push([r, c]);
-            nakedTripleUnidad(celdas);
-        }
-
-        for (let br = 0; br < 3; br++) {
-            for (let bc = 0; bc < 3; bc++) {
-                let celdas = [];
-                for (let r = br * 3; r < br * 3 + 3; r++)
-                    for (let c = bc * 3; c < bc * 3 + 3; c++)
-                        if (working[r][c] === 0)
-                            celdas.push([r, c]);
-                nakedTripleUnidad(celdas);
-            }
-        }
-
-        // ==============================
-        // X-Wing
-        // ==============================
-        for (let n = 1; n <= 9; n++) {
-
-            let filas = {};
-
-            for (let r = 0; r < 9; r++) {
-                let cols = [];
-                for (let c = 0; c < 9; c++)
-                    if (working[r][c] === 0 && candidates[r][c].includes(n))
-                        cols.push(c);
-
-                if (cols.length === 2)
-                    filas[r] = cols;
-            }
-
-            let filasKeys = Object.keys(filas);
-
-            for (let i = 0; i < filasKeys.length; i++) {
-                for (let j = i + 1; j < filasKeys.length; j++) {
-                    let r1 = filasKeys[i];
-                    let r2 = filasKeys[j];
-
-                    if (filas[r1][0] === filas[r2][0] &&
-                        filas[r1][1] === filas[r2][1]) {
-
-                        let c1 = filas[r1][0];
-                        let c2 = filas[r1][1];
-
-                        for (let r = 0; r < 9; r++) {
-                            if (r != r1 && r != r2) {
-                                for (let c of [c1, c2]) {
-                                    if (working[r][c] === 0 &&
-                                        candidates[r][c].includes(n)) {
-
-                                        candidates[r][c] =
-                                            candidates[r][c].filter(x => x !== n);
-
-                                        stats.xwing++;
-                                        progreso = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+      }
+      return false;
     }
 
-    if (working.flat().includes(0)) {
-        stats.backtracking++;
+    // Filas
+    for (let r = 0; r < 9; r++) {
+      let celdas = [];
+      for (let c = 0; c < 9; c++)
+        if (working[r][c] === 0) celdas.push([r, c]);
+
+      if (hiddenSingleUnidad(celdas)) progreso = true;
     }
 
-    return stats;
+    // Columnas
+    for (let c = 0; c < 9; c++) {
+      let celdas = [];
+      for (let r = 0; r < 9; r++)
+        if (working[r][c] === 0) celdas.push([r, c]);
+
+      if (hiddenSingleUnidad(celdas)) progreso = true;
+    }
+
+    // Bloques
+    for (let br = 0; br < 3; br++) {
+      for (let bc = 0; bc < 3; bc++) {
+        let celdas = [];
+        for (let r = br * 3; r < br * 3 + 3; r++) {
+          for (let c = bc * 3; c < bc * 3 + 3; c++) {
+            if (working[r][c] === 0) celdas.push([r, c]);
+          }
+        }
+        if (hiddenSingleUnidad(celdas)) progreso = true;
+      }
+    }
+
+    // =====================================================
+    // A PARTIR DE AQUÍ: técnicas que SOLO eliminan candidatos
+    // ❗ NO deben poner progreso=true, porque candidates se regenera
+    // =====================================================
+
+    candidates = getCandidatesGrid();
+
+    // ==============================
+    // Naked Pair (solo conteo)
+    // ==============================
+    function nakedPairUnidad(celdas) {
+      let pares = {};
+
+      for (let [r, c] of celdas) {
+        if (candidates[r][c].length === 2) {
+          let key = candidates[r][c].join("-");
+          pares[key] = pares[key] ? pares[key].concat([[r, c]]) : [[r, c]];
+        }
+      }
+
+      for (let key in pares) {
+        if (pares[key].length === 2) {
+          stats.nakedPair++; // ✅ contamos, pero NO cambiamos working
+        }
+      }
+    }
+
+    for (let r = 0; r < 9; r++) {
+      let celdas = [];
+      for (let c = 0; c < 9; c++) if (working[r][c] === 0) celdas.push([r, c]);
+      nakedPairUnidad(celdas);
+    }
+
+    for (let c = 0; c < 9; c++) {
+      let celdas = [];
+      for (let r = 0; r < 9; r++) if (working[r][c] === 0) celdas.push([r, c]);
+      nakedPairUnidad(celdas);
+    }
+
+    for (let br = 0; br < 3; br++) {
+      for (let bc = 0; bc < 3; bc++) {
+        let celdas = [];
+        for (let r = br * 3; r < br * 3 + 3; r++)
+          for (let c = bc * 3; c < bc * 3 + 3; c++)
+            if (working[r][c] === 0) celdas.push([r, c]);
+        nakedPairUnidad(celdas);
+      }
+    }
+
+    // ==============================
+    // Naked Triple (solo conteo)
+    // ==============================
+    function nakedTripleUnidad(celdas) {
+      if (celdas.length < 3) return;
+
+      const candCeldas = celdas
+        .map(([r, c]) => ({ r, c, cand: candidates[r][c] }))
+        .filter(x => x.cand.length >= 2 && x.cand.length <= 3);
+
+      if (candCeldas.length < 3) return;
+
+      const esSubconjunto = (arr, sup) => arr.every(v => sup.includes(v));
+
+      for (let i = 0; i < candCeldas.length; i++) {
+        for (let j = i + 1; j < candCeldas.length; j++) {
+          for (let k = j + 1; k < candCeldas.length; k++) {
+            const a = candCeldas[i];
+            const b = candCeldas[j];
+            const d = candCeldas[k];
+
+            const union = Array.from(new Set([...a.cand, ...b.cand, ...d.cand]));
+            if (union.length !== 3) continue;
+
+            if (!esSubconjunto(a.cand, union) || !esSubconjunto(b.cand, union) || !esSubconjunto(d.cand, union)) {
+              continue;
+            }
+
+            stats.nakedTriple++; // ✅ contamos, pero NO cambiamos working
+          }
+        }
+      }
+    }
+
+    for (let r = 0; r < 9; r++) {
+      let celdas = [];
+      for (let c = 0; c < 9; c++) if (working[r][c] === 0) celdas.push([r, c]);
+      nakedTripleUnidad(celdas);
+    }
+
+    for (let c = 0; c < 9; c++) {
+      let celdas = [];
+      for (let r = 0; r < 9; r++) if (working[r][c] === 0) celdas.push([r, c]);
+      nakedTripleUnidad(celdas);
+    }
+
+    for (let br = 0; br < 3; br++) {
+      for (let bc = 0; bc < 3; bc++) {
+        let celdas = [];
+        for (let r = br * 3; r < br * 3 + 3; r++)
+          for (let c = bc * 3; c < bc * 3 + 3; c++)
+            if (working[r][c] === 0) celdas.push([r, c]);
+        nakedTripleUnidad(celdas);
+      }
+    }
+
+    // ==============================
+    // X-Wing (solo conteo)
+    // ==============================
+    for (let n = 1; n <= 9; n++) {
+      let filas = {};
+
+      for (let r = 0; r < 9; r++) {
+        let cols = [];
+        for (let c = 0; c < 9; c++)
+          if (working[r][c] === 0 && candidates[r][c].includes(n)) cols.push(c);
+
+        if (cols.length === 2) filas[r] = cols;
+      }
+
+      let filasKeys = Object.keys(filas);
+
+      for (let i = 0; i < filasKeys.length; i++) {
+        for (let j = i + 1; j < filasKeys.length; j++) {
+          let r1 = filasKeys[i];
+          let r2 = filasKeys[j];
+
+          if (filas[r1][0] === filas[r2][0] && filas[r1][1] === filas[r2][1]) {
+            stats.xwing++; // ✅ contamos, pero NO cambiamos working
+          }
+        }
+      }
+    }
+  }
+
+  // si todavía quedan ceros, asumimos que tocaría backtracking
+  if (working.flat().includes(0)) stats.backtracking++;
+
+  return stats;
 }
 //=====================================
 //Clasificacion de dificultad 
@@ -759,7 +713,7 @@ function clasificarSeedsPorDificultad({
   huecos,
   porDificultad = 20,     // cuántas seeds quieres por cada dificultad
   masterSeed = 20260224,  // para que la búsqueda sea reproducible
-  maxIntentos = 2000    // límite para no quedarse eterno
+  maxIntentos = 10    // límite para no quedarse eterno
 } = {}) {
   if (!Number.isInteger(huecos) || huecos < 0 || huecos > 81) {
     throw new Error("huecos debe ser un entero entre 0 y 81");
@@ -794,14 +748,18 @@ function clasificarSeedsPorDificultad({
 
     // seed en [1..1,000,000]
     const seed = Math.floor(pick() * 1_000_000) + 1;
+    console.log("Probando seed:", seed);
 
     if (usados.has(seed)) continue;
     usados.add(seed);
 
     try {
       const solucion = generarSolucion(seed);
+      
       const puzzle = crearPuzzle(solucion, huecos, seed);
-      const evalRes = evaluarDificultad(puzzle); // { dificultad, score, huecos, ... }
+      
+      const evalRes = evaluarDificultad(puzzle); // { dificultad, score, huecos, ... 
+      
 
       const nivel = evalRes.dificultad;
       if (resultado[nivel] && resultado[nivel].length < porDificultad) {
@@ -829,10 +787,10 @@ function clasificarSeedsPorDificultad({
 // Ejemplo de uso
 // =====================
 
-const listas = clasificarSeedsPorDificultad({ huecos: 40, porDificultad: 15, masterSeed: 12345 });
+const listas = clasificarSeedsPorDificultad({ huecos: 60, porDificultad: 5, masterSeed: 50, maxIntentos: 20});
 console.log(listas);
-console.log(listas.Principiante.length);
-console.log(evaluarDificultad(crearPuzzle(generarSolucion(listas.Principiante[0].seed), listas.Principiante[0].huecos, listas.Principiante[0].seed)));
+//console.log(listas.Principiante.length);
+
 //=====================================
 // Generar solución y puzzle con una de las semillas obtenidas
 //=====================================
