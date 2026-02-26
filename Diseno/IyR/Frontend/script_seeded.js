@@ -9,7 +9,7 @@ import {
   limpiarNotasCelda,
   esMovimientoValido,
   toggleNota,
-} from "./Libreria/src/index.js";
+} from "https://esm.sh/@uninorte/cerebro-sudoku@1.1.0";
 
 // ===== Difficulty settings (UI labels) =====
 const difficultyLevels = [
