@@ -494,7 +494,7 @@ function analizarDificultad(board) {
               continue;
             }
 
-            stats.nakedTriple++; // ✅ contamos, pero NO cambiamos working
+            stats.nakedTriple++; //  contamos, pero NO cambiamos working
           }
         }
       }
