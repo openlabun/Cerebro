@@ -5,6 +5,6 @@ WORKDIR /usr/share/nginx/html
 COPY index.html ./index.html
 COPY styles.css ./styles.css
 COPY script_seeded.js ./script_seeded.js
-COPY Libreria ./Libreria
+
 
 EXPOSE 80

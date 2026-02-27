@@ -10,16 +10,16 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='repla
 # ============================================================
 # CONFIGURACIÓN — Cambiar antes de correr
 # ============================================================
-C1 = "http://localhost:3000"   # Contenedor1
+C1 = "http://localhost:3002"   # Contenedor1
 C2 = "http://localhost:3001"   # Contenedor2
 
-JUGADOR1_EMAIL = "usuarioprueba1@uninorte.edu.co"
+JUGADOR1_EMAIL = "usuarioprueba1@prueba.com"
 JUGADOR1_PASSWORD = "12345678Aa!"
 
-JUGADOR2_EMAIL = "usuarioprueba2@uninorte.edu.co"
+JUGADOR2_EMAIL = "usuarioprueba2@prueba.com"
 JUGADOR2_PASSWORD = "12345678Bb!"
 
-WEBHOOK_URL = "https://webhook.site/30cb6f4f-43c0-40a2-b5ac-5ed42d56aeac"
+WEBHOOK_URL = "https://webhook.site/6098a1be-aa3a-4e8e-a9cc-92c95aa963ea"
 # ============================================================
 
 
