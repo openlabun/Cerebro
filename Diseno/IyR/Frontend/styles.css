@@ -129,6 +129,9 @@ font-size: clamp(1.5rem, 4vw, 2.4rem);}
 .password-check { margin: .4rem 0 .6rem; padding: .6rem .7rem; border: 1px solid var(--border); border-radius: 10px; background: color-mix(in srgb, var(--primary) 10%, var(--surface)); display: flex; align-items: center; gap: .45rem; color: var(--muted); font-weight: 600; }
 .auth-tab-card { margin: 0 auto; }
 .auth-switch { display: flex; gap: .5rem; margin-bottom: .8rem; }
+.auth-message { min-height: 1.25rem; margin: 0 0 .6rem; font-size: .9rem; color: var(--muted); }
+.auth-message.ok { color: #138a4c; }
+.auth-message.error { color: #c03b2b; }
 .auth-helper { margin: .2rem 0 0; color: var(--muted); font-size: .9rem; }
 .link-btn { border: 0; background: transparent; color: var(--primary-dark); font-weight: 700; cursor: pointer; padding: 0; }
 
