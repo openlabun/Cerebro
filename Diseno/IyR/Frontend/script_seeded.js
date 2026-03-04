@@ -122,6 +122,15 @@ const resetPasswordConfirmInput = document.getElementById("reset-password-confir
 const authMessageEl = document.getElementById("auth-message");
 const profileNameEl = document.getElementById("profile-name");
 const profileTitleEl = document.getElementById("profile-title");
+const profileLevelBadgeEl = document.querySelector(
+  "#open-avatar-picker .level-badge",
+);
+const profileLevelFillEl = document.querySelector(
+  "#perfil-tab .profile-level-wrap .level-fill",
+);
+const profileLevelTextEl = document.querySelector(
+  "#perfil-tab .profile-level-wrap .level-text",
+);
 
 // ===== Runtime state =====
 let noteMode = false; // 
@@ -226,38 +235,28 @@ function toYmd(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function createStreakActivityDates(year) {
+function createStreakActivityDates(year, rachaActual) {
   const dates = new Set();
   const today = new Date();
+  const count = Math.max(0, Number(rachaActual) || 0);
 
-  // Racha actual: últimos 17 días consecutivos hasta hoy.
-  for (let i = 0; i < 17; i += 1) {
+  for (let i = 0; i < count; i += 1) {
     const day = new Date(today);
     day.setDate(today.getDate() - i);
     if (day.getFullYear() === year) dates.add(toYmd(day));
   }
 
-  // Días adicionales de actividad en meses anteriores del mismo año.
-  [
-    `${year}-01-04`,
-    `${year}-01-05`,
-    `${year}-01-12`,
-    `${year}-01-22`,
-    `${year}-02-02`,
-    `${year}-02-10`,
-    `${year}-03-08`,
-    `${year}-03-14`,
-    `${year}-04-03`,
-    `${year}-05-18`,
-    `${year}-06-02`,
-    `${year}-07-09`,
-  ].forEach((d) => dates.add(d));
-
   return [...dates].sort();
 }
 
-const streakActivityDates = createStreakActivityDates(CURRENT_YEAR);
 let currentStreakMonth = new Date(CURRENT_YEAR, new Date().getMonth(), 1);
+
+const streakActivityDates = createStreakActivityDates(
+  currentStreakMonth.getFullYear(),
+  currentStreakMonth.getMonth(),
+  authSession?.user?.rachaActual ?? authSession?.profile?.rachaActual ?? 0
+);
+
 let activeBadgeSlot = null;
 let activeFrame = "frame-royal";
 
@@ -560,12 +559,61 @@ function getProfileDisplayName(user) {
   return `Jugador#${id.slice(-4)}`;
 }
 
+// ===== Helpers nuevos: XP -> siguiente nivel =====
+function xpParaSiguienteNivel(nivel) {
+  const lvl = Number(nivel);
+  if (lvl >= 1 && lvl <= 10) return lvl * 100;
+  if (lvl >= 11 && lvl <= 30) return lvl * 150;
+  if (lvl >= 31 && lvl <= 50) return lvl * 250;
+  return lvl + 250;
+}
+
+// ===== Helper nuevo: pinta nivel/racha/barra usando datos de profiles/me =====
+function syncProfileProgress(user) {
+  if (!profileLevelBadgeEl && !profileLevelFillEl && !profileLevelTextEl) {
+    return;
+  }
+
+  if (!isAuthenticated()) {
+    if (streakCountEl) streakCountEl.textContent = "0";
+    if (profileLevelBadgeEl) profileLevelBadgeEl.textContent = "47";
+    if (profileLevelFillEl) profileLevelFillEl.style.width = "68%";
+    if (profileLevelTextEl)
+      profileLevelTextEl.textContent = "Nivel 47 · 680 / 1000 XP";
+    return;
+  }
+
+  const nivel = Number(user?.nivel ?? 0);
+  const experiencia = Number(user?.experiencia ?? 0);
+  const rachaActual = Number(user?.rachaActual ?? 0);
+
+  if (streakCountEl && Number.isFinite(rachaActual)) {
+    streakCountEl.textContent = String(rachaActual);
+  }
+
+  if (!Number.isFinite(nivel) || nivel <= 0) {
+    return;
+  }
+
+  const xpNext = xpParaSiguienteNivel(nivel);
+  const safeXpNext = Number.isFinite(xpNext) && xpNext > 0 ? xpNext : 1000;
+  const safeXp = Number.isFinite(experiencia) && experiencia >= 0 ? experiencia : 0;
+  const pct = Math.max(0, Math.min(100, (safeXp / safeXpNext) * 100));
+
+  if (profileLevelBadgeEl) profileLevelBadgeEl.textContent = String(nivel);
+  if (profileLevelFillEl) profileLevelFillEl.style.width = `${pct}%`;
+  if (profileLevelTextEl) {
+    profileLevelTextEl.textContent = `Nivel ${nivel} · ${safeXp} / ${safeXpNext} XP`;
+  }
+}
+
 function syncProfileIdentity() {
   if (!profileNameEl || !profileTitleEl) return;
 
   if (!isAuthenticated()) {
     profileNameEl.textContent = DEFAULT_PROFILE_NAME;
     profileTitleEl.textContent = DEFAULT_PROFILE_TITLE;
+    syncProfileProgress(null);
     return;
   }
 
@@ -574,6 +622,9 @@ function syncProfileIdentity() {
   profileTitleEl.textContent = user.email
     ? `Correo: ${user.email}`
     : "Sesion activa";
+
+  // NUEVO
+  syncProfileProgress(user);
 }
 
 function syncAuthUi() {
@@ -629,11 +680,29 @@ async function hydrateSession(session) {
       (verifiedUser.email ? String(verifiedUser.email).split("@")[0] : ""),
   };
 
-  return {
+  const hydrated = {
     ...session,
     user,
   };
+
+  // NUEVO: traer nivel/racha/experiencia desde profiles/me
+  try {
+    const perfil = await apiClient.getMyProfile(hydrated.accessToken);
+
+    if (perfil) {
+      hydrated.user = {
+        ...(hydrated.user || {}),
+        ...perfil,
+      };
+      hydrated.profile = perfil;
+    }
+  } catch (error) {
+    console.warn("No se pudo cargar el perfil del usuario.", error);
+  }
+
+  return hydrated;
 }
+
 
 async function tryRefreshSession(session) {
   if (!session?.refreshToken) {
