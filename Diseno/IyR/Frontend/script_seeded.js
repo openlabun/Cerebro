@@ -596,9 +596,11 @@ async function showModeDetail(modeKey) {
     card.classList.toggle("active", card.dataset.mode === modeKey);
   });
 
+  /*
   if (modeKey === "sudoku") {
     await loadSudokuStatsIntoProfile();
   }
+  */
 
   const stats = profileModeStats[modeKey];
   if (!stats || !modeDetailTitle || !modeDetailList) return;
@@ -675,14 +677,17 @@ function initProfileUi() {
 
 
 // ===== Sudoku game logic =====
-function setTab(mode) {
+async function setTab(mode) {
   const isHome = mode === "inicio";
   const isGame = mode === "juego";
   const isProfile = mode === "perfil";
   const isTorneos = mode === "torneos";
   const isPvp = mode === "pvp";
   const isLogin = mode === "login";
-
+  if(mode === "perfil"){
+    await loadSudokuStatsIntoProfile();
+    await showModeDetail("sudoku");
+  }
   inicioTab.classList.toggle("hidden", !isHome);
   juegoTab.classList.toggle("hidden", !isGame);
   perfilTab.classList.toggle("hidden", !isProfile);
