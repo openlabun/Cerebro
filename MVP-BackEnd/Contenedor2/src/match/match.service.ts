@@ -99,6 +99,8 @@ interface LegacyInferredState {
 export class MatchService {
   private readonly logger = new Logger(MatchService.name);
   private readonly contenedor1Url: string;
+  private readonly matchOwnerToken = new Map<string, string>();
+  private readonly userTokenCache = new Map<string, string>();
 
   constructor(
     private readonly roble: RobleService,
@@ -115,6 +117,122 @@ export class MatchService {
   private stripSolution(state: MatchState) {
     const { solution, ...rest } = state;
     return rest;
+  }
+
+  private cacheUserToken(userId: string, token: string) {
+    if (!userId || !token) return;
+    this.userTokenCache.set(userId, token);
+  }
+
+  private rememberMatchOwnerToken(matchId: string, ownerId: string, token: string) {
+    if (!matchId || !ownerId || !token) return;
+    this.matchOwnerToken.set(matchId, token);
+    this.userTokenCache.set(ownerId, token);
+  }
+
+  private resolveOwnerToken(matchId: string, ownerId: string): string | null {
+    const byMatch = this.matchOwnerToken.get(matchId);
+    if (byMatch) return byMatch;
+    const byUser = this.userTokenCache.get(ownerId);
+    return byUser || null;
+  }
+
+  private async updateMatchWithFallback(
+    matchId: string,
+    ownerId: string,
+    requesterToken: string,
+    updates: Record<string, unknown>,
+  ) {
+    try {
+      return await this.roble.update<MatchRecord>(
+        requesterToken,
+        'Matches',
+        '_id',
+        matchId,
+        updates,
+      );
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status !== 403) throw err;
+
+      const ownerToken = this.resolveOwnerToken(matchId, ownerId);
+      if (!ownerToken || ownerToken === requesterToken) {
+        throw err;
+      }
+
+      this.logger.warn(
+        `Fallback update token for match=${matchId} owner=${ownerId} due to 403 with requester token`,
+      );
+
+      return this.roble.update<MatchRecord>(
+        ownerToken,
+        'Matches',
+        '_id',
+        matchId,
+        updates,
+      );
+    }
+  }
+
+  private isUpdateMatchesPermissionError(err: any): boolean {
+    const status = err?.response?.status ?? err?.status;
+    const raw = JSON.stringify(err?.response?.data || err?.message || '')
+      .toLowerCase();
+    return status === 403 && raw.includes('update') && raw.includes('matches');
+  }
+
+  private async insertLegacyJoinEvent(
+    matchId: string,
+    usuarioId: string,
+    token: string,
+  ) {
+    await this.roble.insert<MovimientoRecord>(token, 'MovimientosPvP', [
+      {
+        matchId,
+        usuarioId,
+        row: LEGACY_ROW_JOIN,
+        col: 0,
+        value: 0,
+        esCorrecta: true,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+  }
+
+  private async insertLegacyFinishedEvent(
+    matchId: string,
+    ganadorId: string,
+    token: string,
+  ) {
+    await this.roble.insert<MovimientoRecord>(token, 'MovimientosPvP', [
+      {
+        matchId,
+        usuarioId: ganadorId,
+        row: LEGACY_ROW_FINISHED,
+        col: 0,
+        value: 0,
+        esCorrecta: true,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+  }
+
+  private async insertLegacyForfeitEvent(
+    matchId: string,
+    usuarioId: string,
+    token: string,
+  ) {
+    await this.roble.insert<MovimientoRecord>(token, 'MovimientosPvP', [
+      {
+        matchId,
+        usuarioId,
+        row: LEGACY_ROW_FORFEIT,
+        col: 0,
+        value: 0,
+        esCorrecta: true,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
   }
 
   private toPublicPlayerSummary(player: PlayerProgress): PublicPlayerSummary {
@@ -411,6 +529,7 @@ export class MatchService {
     token: string,
     tokenC1: string,
   ) {
+    this.cacheUserToken(usuarioId, token);
     await this.verifyTorneoPvp(torneoId, tokenC1);
     await this.verifyParticipante(torneoId, tokenC1);
 
@@ -435,6 +554,7 @@ export class MatchService {
     ]);
 
     const created = result.inserted[0];
+    this.rememberMatchOwnerToken(created._id!, usuarioId, token);
     const state = await this.rebuildState(created._id!, token);
     return this.stripSolution(state);
   }
@@ -445,6 +565,7 @@ export class MatchService {
     token: string,
     tokenC1: string,
   ) {
+    this.cacheUserToken(usuarioId, token);
     const state = await this.rebuildState(matchId, token);
     if (state.estado !== 'WAITING')
       throw new BadRequestException('El match no esta en espera');
@@ -454,11 +575,19 @@ export class MatchService {
 
     await this.verifyParticipante(state.torneoId, tokenC1);
 
-    await this.roble.update<MatchRecord>(token, 'Matches', '_id', matchId, {
-      jugador2Id: usuarioId,
-      estado: 'ACTIVE',
-      fechaInicio: new Date().toISOString(),
-    });
+    try {
+      await this.updateMatchWithFallback(matchId, state.jugador1Id, token, {
+        jugador2Id: usuarioId,
+        estado: 'ACTIVE',
+        fechaInicio: new Date().toISOString(),
+      });
+    } catch (err) {
+      if (!this.isUpdateMatchesPermissionError(err)) throw err;
+      this.logger.warn(
+        `No permission to UPDATE Matches on join. Falling back to legacy join event for match=${matchId}`,
+      );
+      await this.insertLegacyJoinEvent(matchId, usuarioId, token);
+    }
 
     this.webhookService
       .emit(
@@ -485,6 +614,7 @@ export class MatchService {
     value: number,
     token: string,
   ) {
+    this.cacheUserToken(usuarioId, token);
     const state = await this.rebuildState(matchId, token);
     if (state.estado !== 'ACTIVE')
       throw new BadRequestException('El match no esta activo');
@@ -576,13 +706,26 @@ export class MatchService {
       const perdedorId =
         ganadorId === updated.jugador1Id ? updated.jugador2Id! : updated.jugador1Id;
 
-      await this.roble.update<MatchRecord>(token, 'Matches', '_id', matchId, {
-        estado: 'FINISHED',
-        ganadorId,
-        fechaFin: new Date().toISOString(),
-        puntaje1: p1.score,
-        puntaje2: p2.score,
-      });
+      try {
+        await this.updateMatchWithFallback(
+          matchId,
+          updated.jugador1Id,
+          token,
+          {
+            estado: 'FINISHED',
+            ganadorId,
+            fechaFin: new Date().toISOString(),
+            puntaje1: p1.score,
+            puntaje2: p2.score,
+          },
+        );
+      } catch (err) {
+        if (!this.isUpdateMatchesPermissionError(err)) throw err;
+        this.logger.warn(
+          `No permission to UPDATE Matches on finish. Falling back to legacy finished event for match=${matchId}`,
+        );
+        await this.insertLegacyFinishedEvent(matchId, ganadorId, token);
+      }
 
       const eloResult = await this.rankingService.updateElo(
         ganadorId,
@@ -636,11 +779,13 @@ export class MatchService {
   }
 
   async getMatch(matchId: string, usuarioId: string, token: string) {
+    this.cacheUserToken(usuarioId, token);
     const state = await this.rebuildState(matchId, token);
     return this.sanitizeMatchForUser(state, usuarioId);
   }
 
   async forfeit(matchId: string, usuarioId: string, token: string) {
+    this.cacheUserToken(usuarioId, token);
     const state = await this.rebuildState(matchId, token);
     if (state.estado !== 'ACTIVE')
       throw new BadRequestException('El match no esta activo');
@@ -652,13 +797,21 @@ export class MatchService {
     const oponenteId =
       state.jugador1Id === usuarioId ? j2Id : state.jugador1Id;
 
-    await this.roble.update<MatchRecord>(token, 'Matches', '_id', matchId, {
-      estado: 'FORFEIT',
-      ganadorId: oponenteId,
-      fechaFin: new Date().toISOString(),
-      puntaje1: state.player1.score,
-      puntaje2: state.player2?.score ?? 0,
-    });
+    try {
+      await this.updateMatchWithFallback(matchId, state.jugador1Id, token, {
+        estado: 'FORFEIT',
+        ganadorId: oponenteId,
+        fechaFin: new Date().toISOString(),
+        puntaje1: state.player1.score,
+        puntaje2: state.player2?.score ?? 0,
+      });
+    } catch (err) {
+      if (!this.isUpdateMatchesPermissionError(err)) throw err;
+      this.logger.warn(
+        `No permission to UPDATE Matches on forfeit. Falling back to legacy forfeit event for match=${matchId}`,
+      );
+      await this.insertLegacyForfeitEvent(matchId, usuarioId, token);
+    }
 
     await this.rankingService.updateElo(oponenteId, usuarioId, token);
 

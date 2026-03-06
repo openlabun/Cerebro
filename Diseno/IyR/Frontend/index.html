@@ -215,6 +215,9 @@
         </div>
 
         <div class="board-card" aria-label="Tablero sudoku">
+          <div class="pvp-live-controls hidden" id="pvp-live-controls">
+            <button id="pvp-forfeit-btn" class="btn danger" type="button">Abandonar partida</button>
+          </div>
           <div class="board-header">
             <div class="difficulty-wrap">
               <label for="difficulty-select">Dificultad:</label>
@@ -271,7 +274,17 @@
             <li>Chat rapido con mensajes predefinidos.</li>
             <li>Modo revancha al finalizar la partida.</li>
           </ul>
-          <button class="btn primary" type="button">Buscar rival</button>
+          <div class="pvp-form-grid">
+            <p class="pvp-helper">
+              Crea un link de invitacion y compartelo. Cuando el jugador 2 entre con ese link, la partida inicia automaticamente.
+            </p>
+            <div class="pvp-invite-actions">
+              <button class="btn primary" id="pvp-find-rival" type="button">Crear link de partida</button>
+              <button class="btn light" id="pvp-copy-link" type="button">Copiar link</button>
+            </div>
+            <a id="pvp-invite-link" class="pvp-invite-link hidden" href="#" target="_blank" rel="noopener noreferrer"></a>
+            <p id="pvp-status" class="status pvp-status" aria-live="polite"></p>
+          </div>
         </div>
       </section>
 
@@ -366,5 +379,6 @@
     <script type="module" src="./script_seeded.js"></script>
   </body>
 </html>
+
 
 

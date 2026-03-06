@@ -48,6 +48,7 @@ main { max-width: 1160px; margin: 0 auto; padding: 1rem; }
 .hero-actions { display: flex; gap: .75rem; margin: 1.2rem 0; }
 .btn { border: 0; border-radius: 12px; padding: .72rem 1.1rem; font-weight: 700; cursor: pointer; text-decoration: none; }
 .btn.primary { background: var(--primary); color: #fff; }
+.btn.danger { background: #d64f4f; color: #fff; }
 .btn.light { background: #e6e8ff; color: var(--primary-dark); }
 .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
 .btn:disabled { opacity: .6; cursor: not-allowed; }
@@ -79,6 +80,7 @@ font-size: clamp(1.5rem, 4vw, 2.4rem);}
 .progress-text { margin: .4rem 0 0; color: var(--muted); font-size: .82rem; }
 .status { min-height: 1.2rem; margin-top: .7rem; color: var(--muted); }
 .status.ok { color: #0e8b44; font-weight: 700; }
+.status.error { color: #c03b2b; font-weight: 700; }
 .board-actions { margin-top: .8rem; display: flex; gap: .6rem; flex-wrap: wrap; }
 #keypad { justify-content: center; }
 .chip { border: 1px solid var(--border); background: var(--surface); color: var(--muted); border-radius: 999px; padding: .45rem .8rem; cursor: pointer; }
@@ -143,6 +145,13 @@ font-size: clamp(1.5rem, 4vw, 2.4rem);}
 
 .mode-view-card { max-width: 720px; margin: 0 auto; display: grid; gap: .55rem; }
 .mode-view-list { margin: 0 0 .55rem; color: var(--muted); display: grid; gap: .3rem; }
+.pvp-form-grid { display: grid; gap: .45rem; }
+.pvp-helper { margin: 0; color: var(--muted); }
+.pvp-invite-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.pvp-invite-link { color: var(--primary-dark); font-weight: 700; word-break: break-all; text-decoration: none; }
+.pvp-invite-link:hover { text-decoration: underline; }
+.pvp-status { margin: .15rem 0 .2rem; }
+.pvp-live-controls { display: flex; justify-content: flex-end; margin-bottom: .65rem; }
 .picker-card h3 { margin: .2rem 2rem .8rem 0; }
 .picker-switch { display: flex; gap: .5rem; margin-bottom: .7rem; }
 .picker-tab { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px; padding: .35rem .75rem; font-weight: 700; }

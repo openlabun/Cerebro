@@ -146,6 +146,20 @@ const apiClient = {
     });
   },
 
+  pvpLogin(credentials) {
+    return request("pvp-auth/login", {
+      method: "POST",
+      body: credentials,
+    });
+  },
+
+  pvpSignupDirect(payload) {
+    return request("pvp-auth/signup-direct", {
+      method: "POST",
+      body: payload,
+    });
+  },
+
   signup(payload) {
     return request("auth/signup", {
       method: "POST",
@@ -209,6 +223,22 @@ const apiClient = {
     });
   },
 
+  createTorneo(accessToken, payload) {
+    return request("torneos", {
+      method: "POST",
+      token: accessToken,
+      body: payload,
+    });
+  },
+
+  joinTorneo(accessToken, torneoId, payload = {}) {
+    return request(`torneos/${torneoId}/unirse`, {
+      method: "POST",
+      token: accessToken,
+      body: payload,
+    });
+  },
+
     getMyGameStats(accessToken, juegoId) {
     return request("game-stats/me", {
       method: "POST",
@@ -224,6 +254,44 @@ const apiClient = {
       method: "POST",
       token: accessToken,
       body: payload,
+    });
+  },
+
+  createPvpMatch(accessToken, payload) {
+    return request("pvp/match", {
+      method: "POST",
+      token: accessToken,
+      body: payload,
+    });
+  },
+
+  joinPvpMatch(accessToken, matchId, payload) {
+    return request(`pvp/match/${matchId}/join`, {
+      method: "POST",
+      token: accessToken,
+      body: payload,
+    });
+  },
+
+  getPvpMatch(accessToken, matchId) {
+    return request(`pvp/match/${matchId}`, {
+      method: "GET",
+      token: accessToken,
+    });
+  },
+
+  movePvpMatch(accessToken, matchId, payload) {
+    return request(`pvp/match/${matchId}/move`, {
+      method: "POST",
+      token: accessToken,
+      body: payload,
+    });
+  },
+
+  forfeitPvpMatch(accessToken, matchId) {
+    return request(`pvp/match/${matchId}/forfeit`, {
+      method: "POST",
+      token: accessToken,
     });
   },
 };
