@@ -209,7 +209,7 @@ const apiClient = {
     });
   },
 
-    getMyGameStats(accessToken, juegoId) {
+  getMyGameStats(accessToken, juegoId) {
     return request("game-stats/me", {
       method: "POST",
       token: accessToken,
