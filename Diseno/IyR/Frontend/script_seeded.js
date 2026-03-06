@@ -572,12 +572,15 @@ async function loadSudokuStatsIntoProfile() {
   if (!isAuthenticated()) return;
 
   try {
+    const perfil = await apiClient.getMyProfile(authSession.accessToken);
     const stats = await apiClient.getMyGameStats(authSession.accessToken, GAME_ID_SUDOKU);
 
+    
     if (!stats || typeof stats !== "object") {
       console.warn("[stats] respuesta inválida de getMyGameStats");
       return;
     }
+    syncProfileProgress(perfil);
     profileModeStats.sudoku = [
       `Partidas jugadas: ${stats.partidasJugadas ?? 0}`,
       `Elo: ${stats.elo ?? 0}`,
@@ -1143,8 +1146,10 @@ async function finishSudokuWithScore() {
         juegoId: GAME_ID_SUDOKU,
         puntaje: score,
         resultado: "victoria",
-        cambioElo: 10,
+        cambioElo: score > 700 ? 15 : score > 400 ? 10 : 5,
       });
+      console.log("Partida registrada con puntaje:", Math.floor(score/4));
+      await apiClient.addExperience(accessToken,Math.floor(score/4));
     }
   } catch (error) {
     console.error("No se pudo registrar la partida:", error);
