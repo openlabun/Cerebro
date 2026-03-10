@@ -257,7 +257,9 @@ const apiClient = {
 
   getSudokuSeed(accessToken, dificultad) {
     const encoded = encodeURIComponent(String(dificultad || "").trim());
-    return request(`game-sessions/sudoku-seed?dificultad=${encoded}`, {
+    // cache-bust para evitar respuestas cacheadas en navegadores (Safari incluido)
+    const cacheBust = Date.now();
+    return request(`game-sessions/sudoku-seed?dificultad=${encoded}&_=${cacheBust}`, {
       method: "GET",
       token: accessToken,
     });
