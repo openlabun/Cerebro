@@ -407,7 +407,8 @@ export function createSudokuModule({
     startTimer(true);
   }
 
-  async function loadDifficulty(levelKey) {
+  async function loadDifficulty(levelKey, options = {}) {
+    const forceNewSeed = options?.forceNewSeed === true;
     const found = difficultyLevels.find((d) => d.key === levelKey) || difficultyLevels[2];
     state.currentDifficulty = found;
     if (difficultyLabel) difficultyLabel.textContent = `Dificultad: ${found.label}`;
@@ -425,7 +426,11 @@ export function createSudokuModule({
       if (!Number.isFinite(remoteSeed)) {
         throw new Error("La seed remota no es numerica");
       }
-      buildSudokuBoard(remoteSeed, Number(seedPayload.huecos), seedPayload.seedId || null);
+      const nextSeed =
+        forceNewSeed && remoteSeed === state.seedActual
+          ? Math.floor(Math.random() * 1_000_000)
+          : remoteSeed;
+      buildSudokuBoard(nextSeed, Number(seedPayload.huecos), seedPayload.seedId || null);
     } catch (error) {
       console.warn("No se pudo cargar seed desde Roble; se usara fallback local.", error);
       const localSeed = pickLocalSeedAndHuecosByLabel(found.label);
@@ -520,11 +525,11 @@ export function createSudokuModule({
     }, { capture: true });
 
     difficultySelect?.addEventListener("change", (event) => {
-      void loadDifficulty(event.target.value);
+      void loadDifficulty(event.target.value, { forceNewSeed: true });
     });
 
     newGameBtn?.addEventListener("click", () => {
-      void loadDifficulty(state.currentDifficulty.key);
+      void loadDifficulty(state.currentDifficulty.key, { forceNewSeed: true });
     });
 
     pauseBtn?.addEventListener("click", () => {

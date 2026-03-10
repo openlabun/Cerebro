@@ -43,5 +43,13 @@ export function createSudokuState() {
 export function pickLocalSeedAndHuecosByLabel(label) {
   const lista = seedsPorDificultad[label] || seedsPorDificultad.Intermedio;
   const chosen = lista[Math.floor(Math.random() * lista.length)];
-  return { seed: Number(chosen.seed), huecos: Number(chosen.huecos) };
+  const huecos = Number(chosen?.huecos);
+  // Si solo hay 1 seed por dificultad (o seed inválida), generamos una seed distinta
+  // para que "Nuevo Juego" realmente cambie el tablero.
+  const baseSeed = Number(chosen?.seed);
+  const seed =
+    Number.isFinite(baseSeed) && lista.length > 1
+      ? baseSeed
+      : Math.floor(Math.random() * 1_000_000);
+  return { seed, huecos: Number.isFinite(huecos) ? huecos : 40 };
 }
