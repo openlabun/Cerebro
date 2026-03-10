@@ -11,7 +11,9 @@ export function syncNoteModeUi(toggleNotesBtn, noteMode) {
   if (!toggleNotesBtn) return;
   toggleNotesBtn.classList.toggle("active", noteMode);
   toggleNotesBtn.setAttribute("aria-pressed", noteMode ? "true" : "false");
-  toggleNotesBtn.textContent = noteMode ? "Notas: ON" : "Notas: OFF";
+  toggleNotesBtn.setAttribute("aria-label", noteMode ? "Modo notas activado" : "Modo notas desactivado");
+  const badge = toggleNotesBtn.querySelector(".notes-badge");
+  if (badge) badge.textContent = noteMode ? "ON" : "OFF";
 }
 
 export function syncHighlightsUi(toggleHighlightsBtn, highlightEnabled) {
@@ -58,43 +60,25 @@ export function showSudokuPausePopup(onResume) {
 
   const overlay = document.createElement("div");
   overlay.id = "sudoku-pause-popup";
+  overlay.className = "sudoku-pause-overlay";
   overlay.setAttribute("role", "dialog");
   overlay.setAttribute("aria-modal", "true");
-  overlay.style.position = "fixed";
-  overlay.style.inset = "0";
-  overlay.style.background = "rgba(0,0,0,0.65)";
-  overlay.style.display = "grid";
-  overlay.style.placeItems = "center";
-  overlay.style.zIndex = "9999";
 
   const card = document.createElement("div");
-  card.style.width = "min(92vw, 420px)";
-  card.style.padding = "1.1rem 1rem";
-  card.style.borderRadius = "14px";
-  card.style.background = "#111827";
-  card.style.color = "#f9fafb";
-  card.style.textAlign = "center";
-  card.style.boxShadow = "0 10px 35px rgba(0,0,0,0.35)";
+  card.className = "sudoku-pause-card";
 
   const title = document.createElement("h3");
+  title.className = "sudoku-pause-title";
   title.textContent = "Juego en pausa";
-  title.style.margin = "0 0 .35rem";
 
   const text = document.createElement("p");
+  text.className = "sudoku-pause-text";
   text.textContent = "El tiempo esta detenido. Presiona reanudar para continuar.";
-  text.style.margin = "0 0 .9rem";
-  text.style.opacity = "0.92";
 
   const resumeBtn = document.createElement("button");
   resumeBtn.type = "button";
+  resumeBtn.className = "btn primary sudoku-pause-resume-btn";
   resumeBtn.textContent = "Reanudar";
-  resumeBtn.style.border = "0";
-  resumeBtn.style.borderRadius = "12px";
-  resumeBtn.style.padding = ".72rem 1.1rem";
-  resumeBtn.style.fontWeight = "800";
-  resumeBtn.style.cursor = "pointer";
-  resumeBtn.style.background = "#6B4EE6";
-  resumeBtn.style.color = "#fff";
   resumeBtn.addEventListener("click", () => onResume?.());
 
   card.appendChild(title);
@@ -138,6 +122,9 @@ export function updateProgress(progressFill, progressText, puzzleInicial, tabler
 export function syncSudokuStatsUi(errorsCountEl, hintsUsedEl, errorCount, hintsUsed) {
   if (errorsCountEl) errorsCountEl.textContent = `Errores: ${errorCount}`;
   if (hintsUsedEl) hintsUsedEl.textContent = `Pistas: ${hintsUsed}`;
+
+  const hintBadge = document.getElementById("hint-badge");
+  if (hintBadge) hintBadge.textContent = String(hintsUsed);
 }
 
 export function showSudokuCompletionPopup(score, onRestart, onAfterClose) {

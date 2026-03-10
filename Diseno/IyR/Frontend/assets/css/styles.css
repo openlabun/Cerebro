@@ -1,36 +1,39 @@
 :root {
-  --bg: #f6f7ff;
+  /* Paleta modo claro definitiva (según captura de código) */
+  --bg: #ffffff;
   --surface: #ffffff;
-  --primary: #5b5eff;
-  --primary-dark: #4348db;
-  --text: #1e2450;
-  --muted: #6b7297;
-  --border: #e5e8ff;
-  --shadow: 0 20px 45px rgba(57, 68, 142, 0.15);
+  --primary: #7eb0d4;
+  --primary-dark: #5a94b8;
+  --text: #333333;
+  --muted: #6b6b6b;
+  --border: #e0e0e0;
+  --shadow: 0 20px 45px rgba(0, 0, 0, 0.08);
   --cell-bg: #ffffff;
-  --cell-prefilled: #f0f3ff;
-  --subgrid-line: #7f8de6;
+  --cell-prefilled: #f5f5f5;
+  --subgrid-line: #404040;
+  --cell-border: #d0d0d0;
 }
 
 :root[data-theme="dark"] {
-  --bg: #0f1324;
-  --surface: #171c34;
-  --primary: #7e82ff;
-  --primary-dark: #6b70ff;
-  --text: #e8ebff;
-  --muted: #aeb5df;
-  --border: #2b335f;
+  --bg: #222831;
+  --surface: #31363F;
+  --primary: #76ABAE;
+  --primary-dark: #5a8a8d;
+  --text: #EEEEEE;
+  --muted: #a8b8ba;
+  --border: #31363F;
   --shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-  --cell-bg: #1f2648;
-  --cell-prefilled: #2b335f;
-  --subgrid-line: #dfe5ff;
+  --cell-bg: #222831;
+  --cell-prefilled: #31363F;
+  --subgrid-line: #76ABAE;
+  --cell-border: #3d4450;
 }
 
 * { box-sizing: border-box; }
 button { transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
 button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 18px rgba(57, 68, 142, 0.18); filter: brightness(1.02); }
 html { scroll-behavior: smooth; }
-body { margin: 0; font-family: "Inter", sans-serif; color: var(--text); background: radial-gradient(circle at top right, #eceefe, var(--bg) 35%); }
+body { margin: 0; font-family: "Inter", sans-serif; color: var(--text); background: radial-gradient(circle at top right, #eceefe, var(--bg) 35%); overflow-x: hidden; }
 
 .topbar { max-width: 1160px; margin: 0 auto; padding: 1.2rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .logo { text-decoration: none; color: var(--text); font-size: 1.55rem; font-weight: 800; }
@@ -68,8 +71,8 @@ main { max-width: 1160px; margin: 0 auto; padding: 1rem; }
 
 /* ===== Sudoku game card (respeta tema claro/oscuro) ===== */
 .sudoku-game-card {
-  --sudoku-primary: #6B4EE6;
-  --sudoku-primary-dark: #5a3fd4;
+  --sudoku-primary: var(--primary);
+  --sudoku-primary-dark: var(--primary-dark);
   background: var(--bg);
   border-color: var(--border);
 }
@@ -189,8 +192,8 @@ main { max-width: 1160px; margin: 0 auto; padding: 1rem; }
 }
 
 .sudoku-game-card #toggle-highlights.btn-control.active {
-  background: color-mix(in srgb, var(--primary) 88%, #000 12%);
-  border-color: color-mix(in srgb, var(--primary) 65%, var(--border));
+  background: var(--primary);
+  border-color: var(--primary-dark);
   color: #fff;
 }
 
@@ -242,13 +245,16 @@ main { max-width: 1160px; margin: 0 auto; padding: 1rem; }
 }
 
 .sudoku-grid-wrap {
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
   display: flex;
   justify-content: center;
+  max-width: 100%;
 }
 
 .sudoku-game-card .board {
   margin: 0;
+  max-width: 100%;
 }
 
 .sudoku-controls {
@@ -274,16 +280,16 @@ main { max-width: 1160px; margin: 0 auto; padding: 1rem; }
 
 .sudoku-game-card .keypad-nums .chip.number,
 .sudoku-game-card .keypad-nums button {
-  width: 56px;
-  height: 56px;
-  min-width: 56px;
-  border-radius: 14px;
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+  border-radius: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
   font-weight: 700;
   font-size: 1.35rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
 
 :root[data-theme="dark"] .sudoku-game-card .keypad-nums .chip.number,
@@ -308,6 +314,55 @@ main { max-width: 1160px; margin: 0 auto; padding: 1rem; }
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
+}
+
+.sudoku-game-card .btn-icon-circle {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+  display: grid;
+  place-items: center;
+}
+
+.sudoku-game-card .btn-icon-circle .btn-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--primary-dark);
+  stroke: currentColor;
+}
+
+.sudoku-game-card .btn-icon-circle .btn-icon.icon-erase {
+  transform: translateY(-3px);
+}
+
+.sudoku-game-card .btn-icon-circle .btn-icon-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--primary-dark);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  white-space: nowrap;
+}
+
+.sudoku-game-card .btn-icon-circle.active .btn-icon {
+  color: #fff;
+}
+
+.sudoku-game-card .btn-icon-circle.active {
+  background: var(--primary);
+  border-color: var(--primary-dark);
 }
 
 .sudoku-game-card .btn-control:hover {
@@ -338,8 +393,20 @@ main { max-width: 1160px; margin: 0 auto; padding: 1rem; }
 }
 
 /* ===== Board global (resto de la app) ===== */
-.board { display: grid; grid-template-columns: repeat(9,1fr); width: min(100%, 540px); aspect-ratio: 1 / 1; margin: 0 auto; border: 3px solid var(--subgrid-line); border-radius: 10px; overflow: hidden; }
-.cell,.sign-cell { aspect-ratio: 1 / 1; width: 100%; border: 1px solid #d6daf8; display: grid; place-items: center; font-weight: 700; color: var(--text); background: var(--cell-bg); }
+.board {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  width: 100%;
+  max-width: min(100%, 540px);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  border: 3px solid var(--subgrid-line);
+  border-radius: 10px;
+  overflow: hidden;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.cell,.sign-cell { aspect-ratio: 1 / 1; width: 100%; min-width: 0; border: 1px solid var(--cell-border); display: grid; place-items: center; font-weight: 700; color: var(--text); background: var(--cell-bg); box-sizing: border-box; }
 .cell { cursor: pointer; 
 font-size: clamp(1.5rem, 4vw, 2.4rem);}
 .cell.selected { outline: 2px solid var(--primary); outline-offset: -2px; }
@@ -372,6 +439,46 @@ font-size: clamp(1.5rem, 4vw, 2.4rem);}
 .guide-modal-card ul { margin: 0; padding-left: 1.2rem; display: grid; gap: .45rem; }
 .guide-modal-x { position: absolute; top: .7rem; right: .7rem; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 10px; width: 34px; height: 34px; cursor: pointer; }
 @keyframes popIn { from { opacity: 0; transform: scale(.95) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+/* ===== Popup de pausa (respeta tema claro/oscuro) ===== */
+.sudoku-pause-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.sudoku-pause-card {
+  width: min(92vw, 420px);
+  padding: 1.1rem 1rem;
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  animation: popIn .24s ease;
+}
+
+.sudoku-pause-title {
+  margin: 0 0 .35rem;
+  font-size: 1.25rem;
+}
+
+.sudoku-pause-text {
+  margin: 0 0 .9rem;
+  color: var(--muted);
+  opacity: 0.95;
+}
+
+.sudoku-pause-resume-btn {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border: 0 !important;
+}
 
 
 .profile-tab { margin-top: 1rem; }
@@ -478,8 +585,26 @@ font-size: clamp(1.5rem, 4vw, 2.4rem);}
   .picker-options { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .profile-grid { grid-template-columns: 1fr; }
   .sudoku-main { flex-direction: column; align-items: center; }
-  .sudoku-top-row { flex-direction: column; }
+  .sudoku-top-row { flex-direction: column; align-items: stretch; }
+  .sudoku-top-right {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .sudoku-game-card .btn-new-game {
+    flex: 1 1 100%;
+    width: 100%;
+    text-align: center;
+  }
+  .sudoku-grid-wrap {
+    width: 100%;
+    max-width: 100%;
+  }
+  .sudoku-game-card .board {
+    width: 100%;
+    max-width: 100%;
+  }
 }
+
 /* ===== Notas Sudoku ===== */
 .cell.has-notes {
   padding: 0;
