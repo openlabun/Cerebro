@@ -239,12 +239,30 @@
             </div>
             <div class="sudoku-controls">
               <div id="keypad" class="keypad-nums" aria-label="Teclado numerico"></div>
-              <div class="board-actions controls">
-                <button id="hint" class="btn-control" type="button">Pista</button>
-                <button id="clear-cell" class="btn-control" type="button">Borrar</button>
+              <div class="board-actions controls icon-actions" aria-label="Controles de tablero">
+                <button id="clear-cell" class="btn-control btn-icon-circle" type="button" aria-label="Borrar celda" title="Borrar">
+                  <svg class="btn-icon icon-erase" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M20 20H7l-4-4 4-4h13v8z"/>
+                    <path d="M8 12h12"/>
+                  </svg>
+                </button>
+                <button id="toggle-notes" class="btn-control btn-icon-circle" type="button" aria-pressed="false" aria-label="Modo notas" title="Notas">
+                  <span class="btn-icon-badge notes-badge" id="notes-badge" aria-hidden="true">OFF</span>
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+                  </svg>
+                </button>
+                <button id="hint" class="btn-control btn-icon-circle" type="button" aria-label="Pista" title="Pista">
+                  <span class="btn-icon-badge hint-badge" id="hint-badge" aria-hidden="true">0</span>
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9 18h6"/>
+                    <path d="M10 22h4"/>
+                    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/>
+                  </svg>
+                </button>
               </div>
               <div class="board-actions controls notes-actions">
-                <button id="toggle-notes" class="btn-control" type="button" aria-pressed="false">Notas: OFF</button>
                 <button id="toggle-highlights" class="btn-control active" type="button" aria-pressed="true">Resaltar: ON</button>
               </div>
             </div>
@@ -387,10 +405,10 @@
         <span>Universidad del Norte</span>
         <span class="footer-sep">·</span>
         <a
-          href="https://www.openlab.uninorte.edu.co"
+          href="https://github.com/openlabun/Cerebro.git"
           target="_blank"
           rel="noopener noreferrer"
-        >Openlab</a>
+        >GitHub</a>
       </div>
     </footer>
 

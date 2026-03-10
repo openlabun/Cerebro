@@ -473,10 +473,20 @@ export function createSudokuModule({
       }
     });
 
-    document.addEventListener("keydown", (event) => {
-      if (juegoTab?.classList.contains("hidden")) return;
-      if (state.sudokuPaused) return;
-      if (!state.selectedCell) return;
+    document.addEventListener(
+      "keydown",
+      (event) => {
+        if (juegoTab?.classList.contains("hidden")) return;
+
+        if (event.key.toLowerCase() === "p") {
+          event.preventDefault();
+          if (state.sudokuPaused) resumeSudoku();
+          else pauseSudoku();
+          return;
+        }
+
+        if (state.sudokuPaused) return;
+        if (!state.selectedCell) return;
 
       const row = Number(state.selectedCell.dataset.row);
       const col = Number(state.selectedCell.dataset.col);
@@ -507,7 +517,7 @@ export function createSudokuModule({
           fillSelected("");
         }
       }
-    });
+    }, { capture: true });
 
     difficultySelect?.addEventListener("change", (event) => {
       void loadDifficulty(event.target.value);
