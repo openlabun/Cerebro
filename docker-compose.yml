@@ -39,8 +39,10 @@ services:
       context: "./MVP-BackEnd/ContenedorAdmin"
       dockerfile: Dockerfile
     env_file:
-      - "./MVP-BackEnd/ContenedorAdmin/.env"
-      - "./MVP-BackEnd/Contenedor1/api/.env"
+      - path: "./MVP-BackEnd/ContenedorAdmin/.env.example"
+      - path: "./MVP-BackEnd/ContenedorAdmin/.env"
+        required: false
+      - path: "./MVP-BackEnd/Contenedor1/api/.env"
     environment:
       CONTENEDOR1_BASE_URL: "${CONTENEDOR1_BASE_URL:-http://cerebro-api:3000/api}"
       CONTENEDOR2_BASE_URL: "${CONTENEDOR2_BASE_URL:-http://contenedor2:3001}"
