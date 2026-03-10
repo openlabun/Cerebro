@@ -5,7 +5,6 @@ import {
   darPistaAleatoria,
   crearNotasVacias,
   limpiarNotasCelda,
-  esMovimientoValido,
   toggleNota,
 } from "https://esm.sh/@uninorte/cerebro-sudoku@1.1.0";
 import {
@@ -148,6 +147,59 @@ export function createSudokuModule({
     return counts;
   }
 
+  function getSolvedEditableCellsCount() {
+    let solved = 0;
+    if (!state.tableroActual?.length || !state.solucion?.length || !state.puzzleInicial?.length) {
+      return solved;
+    }
+
+    for (let r = 0; r < 9; r += 1) {
+      for (let c = 0; c < 9; c += 1) {
+        const isEditable = state.puzzleInicial[r][c] === 0;
+        if (isEditable && state.tableroActual[r][c] === state.solucion[r][c]) {
+          solved += 1;
+        }
+      }
+    }
+
+    return solved;
+  }
+
+  function getDifficultyCompletionBonus() {
+    const bonusByDifficulty = {
+      Principiante: 100,
+      Iniciado: 200,
+      Intermedio: 300,
+      Avanzado: 450,
+      Experto: 600,
+      Profesional: 800,
+    };
+
+    return bonusByDifficulty[state.currentDifficulty?.label] || 0;
+  }
+
+  function getHintLimitByDifficulty() {
+    const hintLimitByDifficulty = {
+      Principiante: 5,
+      Iniciado: 4,
+      Intermedio: 3,
+      Avanzado: 2,
+      Experto: 1,
+      Profesional: 0,
+    };
+
+    return hintLimitByDifficulty[state.currentDifficulty?.label] ?? 3;
+  }
+
+  function syncHintAvailability() {
+    if (!hintBtn) return;
+    const hintLimit = getHintLimitByDifficulty();
+    const noHintsAllowed = hintLimit <= 0;
+    const limitReached = state.hintsUsed >= hintLimit;
+    hintBtn.disabled = noHintsAllowed || limitReached;
+    hintBtn.setAttribute("aria-disabled", hintBtn.disabled ? "true" : "false");
+  }
+
   function updateKeypadAvailability() {
     if (!keypadEl) return;
     const counts = getCorrectCountsByNumber();
@@ -221,8 +273,8 @@ export function createSudokuModule({
         if (!isPrefilled) {
           const value = state.tableroActual[r][c];
           if (value !== 0) {
-            const valido = esMovimientoValido(state.tableroActual, r, c, value);
-            cell.classList.toggle("error", !valido);
+            const isCorrectValue = value === state.solucion[r][c];
+            cell.classList.toggle("error", !isCorrectValue);
           }
         }
 
@@ -239,10 +291,19 @@ export function createSudokuModule({
   }
 
   function calculateSudokuScore() {
+    const POINTS_PER_CORRECT_MOVE = 100;
     const TIME_PENALTY_PER_SECOND = 2;
-    const HINT_PENALTY = 75;
-    const penalty = state.seconds * TIME_PENALTY_PER_SECOND + state.hintsUsed * HINT_PENALTY;
-    return Math.max(0, 1000 - penalty);
+    const ERROR_PENALTY = 50;
+    const HINT_PENALTY = 100;
+    const solvedEditableCells = getSolvedEditableCellsCount();
+    const difficultyBonus = getDifficultyCompletionBonus();
+    const earnedPoints = solvedEditableCells * POINTS_PER_CORRECT_MOVE + difficultyBonus;
+    const penalty =
+      state.seconds * TIME_PENALTY_PER_SECOND +
+      state.errorCount * ERROR_PENALTY +
+      state.hintsUsed * HINT_PENALTY;
+
+    return Math.max(0, earnedPoints - penalty);
   }
 
   async function finishSudokuWithScore() {
@@ -251,7 +312,7 @@ export function createSudokuModule({
 
     const score = calculateSudokuScore();
     setSudokuStatus(
-      `Sudoku completado. Puntaje final: ${score} (tiempo: ${state.seconds}s, pistas: ${state.hintsUsed}).`,
+      `Sudoku completado. Puntaje final: ${score} (tiempo: ${state.seconds}s, errores: ${state.errorCount}, pistas: ${state.hintsUsed}, bonus: ${getDifficultyCompletionBonus()}).`,
       true,
     );
 
@@ -324,23 +385,23 @@ export function createSudokuModule({
     state.tableroActual[row][col] = num;
     limpiarNotasCelda(state.notas, row, col);
     state.selectedCell.textContent = String(num);
+    const isCorrectValue = num === state.solucion[row][col];
 
     if (
       previousValue !== num &&
       state.solucion?.[row]?.[col] &&
-      num !== state.solucion[row][col]
+      !isCorrectValue
     ) {
       state.errorCount += 1;
       syncSudokuStatsUi(errorsCountEl, hintsUsedEl, state.errorCount, state.hintsUsed);
       setSudokuStatus(`Numero incorrecto. Errores: ${state.errorCount}.`);
     }
 
-    const valido = esMovimientoValido(state.tableroActual, row, col, num);
-    state.selectedCell.classList.toggle("error", !valido);
+    state.selectedCell.classList.toggle("error", !isCorrectValue);
     refreshProgress();
 
-    if (!valido) {
-      setSudokuStatus("Movimiento viola reglas del Sudoku");
+    if (!isCorrectValue) {
+      setSudokuStatus(`Numero incorrecto. Errores: ${state.errorCount}.`);
       applyCurrentHighlights();
       return;
     }
@@ -387,6 +448,7 @@ export function createSudokuModule({
     state.errorCount = 0;
     state.hintsUsed = 0;
     syncModeButtons();
+    syncHintAvailability();
 
     const numericSeed = Number(seed);
     state.seedActual = Number.isFinite(numericSeed)
@@ -401,7 +463,9 @@ export function createSudokuModule({
 
     createBoard();
     state.roundCompleted = false;
-    setSudokuStatus("Selecciona una celda para comenzar. Puntaje inicial: 1000.");
+    setSudokuStatus(
+      `Selecciona una celda para comenzar. Puntaje inicial: 0. Limite de pistas: ${getHintLimitByDifficulty()}.`,
+    );
     refreshProgress();
     updateKeypadAvailability();
     startTimer(true);
@@ -454,6 +518,18 @@ export function createSudokuModule({
 
     hintBtn?.addEventListener("click", () => {
       if (state.sudokuPaused) return;
+      const hintLimit = getHintLimitByDifficulty();
+      if (hintLimit <= 0) {
+        setSudokuStatus("Esta dificultad no permite pistas.");
+        syncHintAvailability();
+        return;
+      }
+      if (state.hintsUsed >= hintLimit) {
+        setSudokuStatus(`Ya alcanzaste el limite de ${hintLimit} pista(s) para esta dificultad.`);
+        syncHintAvailability();
+        return;
+      }
+
       const resultado = darPistaAleatoria(state.tableroActual, state.solucion);
 
       if (!resultado.ok) {
@@ -463,6 +539,7 @@ export function createSudokuModule({
 
       state.hintsUsed += 1;
       syncSudokuStatsUi(errorsCountEl, hintsUsedEl, state.errorCount, state.hintsUsed);
+      syncHintAvailability();
       const { row, col, valor } = resultado;
       state.tableroActual[row][col] = valor;
 
@@ -474,7 +551,9 @@ export function createSudokuModule({
       if (estaResuelto(state.tableroActual)) {
         finishSudokuWithScore();
       } else {
-        setSudokuStatus(`Pista aplicada. Pistas usadas: ${state.hintsUsed}.`);
+        setSudokuStatus(
+          `Pista aplicada. Pistas usadas: ${state.hintsUsed}/${hintLimit}.`,
+        );
       }
     });
 
@@ -563,6 +642,7 @@ export function createSudokuModule({
     bindGuideControls();
     bindSudokuControls();
     syncModeButtons();
+    syncHintAvailability();
     void loadDifficulty(state.currentDifficulty.key);
   }
 
