@@ -6,34 +6,39 @@ import LoginPage from '../pages/LoginPage.jsx'
 import SignUpPage from '../pages/SignUpPage.jsx'
 import SimulationPage from '../pages/SimulationPage.jsx'
 
-const router = createBrowserRouter([
+const router = createBrowserRouter(
+  [
+    {
+      path: '/',
+      element: <App />,
+      children: [
+        {
+          index: true,
+          element: <HomePage />,
+        },
+        {
+          path: 'login',
+          element: <LoginPage />,
+        },
+        {
+          path: 'signup',
+          element: <SignUpPage />,
+        },
+        {
+          element: <RequireAuth />,
+          children: [
+            {
+              path: 'simulacion',
+              element: <SimulationPage />,
+            },
+          ],
+        },
+      ],
+    },
+  ],
   {
-    path: '/',
-    element: <App />,
-    children: [
-      {
-        index: true,
-        element: <HomePage />,
-      },
-      {
-        path: 'login',
-        element: <LoginPage />,
-      },
-      {
-        path: 'signup',
-        element: <SignUpPage />,
-      },
-      {
-        element: <RequireAuth />,
-        children: [
-          {
-            path: 'simulacion',
-            element: <SimulationPage />,
-          },
-        ],
-      },
-    ],
+    basename: import.meta.env.BASE_URL,
   },
-])
+)
 
 export default router
