@@ -76,23 +76,6 @@ function HomePage() {
           </div>
         </div>
 
-        <div id="estado" className="board-card section-card">
-          <div className="section-heading">
-            <div>
-              <p className="section-kicker">Estado actual</p>
-              <h2>Contenedor listo para integracion</h2>
-            </div>
-            <span className="chip">Puerto 3003</span>
-          </div>
-
-          <div className="mode-detail">
-            <ul className="mode-view-list">
-              <li>Boilerplate de React + Vite creado dentro de `Diseno/PvP/simulador`.</li>
-              <li>Servicio agregado a Docker Compose con publicacion directa en `3003`.</li>
-              <li>Base visual alineada con tokens, botones y tarjetas de IyR.</li>
-            </ul>
-          </div>
-        </div>
       </section>
     </main>
   )
