@@ -1,0 +1,75 @@
+:root {
+  font-family: "Segoe UI", sans-serif;
+  color: #f4f7fb;
+  background:
+    radial-gradient(circle at top, rgba(62, 124, 177, 0.35), transparent 35%),
+    linear-gradient(135deg, #09121f 0%, #132238 50%, #0d1726 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-shell {
+  width: min(1100px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 72px 0;
+}
+
+.hero {
+  margin-bottom: 32px;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: #7dd3fc;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 5vw, 4.5rem);
+}
+
+.lead {
+  max-width: 640px;
+  color: #d5deea;
+  font-size: 1.05rem;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.feature-card {
+  padding: 24px;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  border-radius: 20px;
+  background: rgba(12, 22, 36, 0.7);
+  backdrop-filter: blur(10px);
+}
+
+.feature-card h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 1.15rem;
+}
+
+.feature-card p {
+  margin: 0;
+  color: #c2cedb;
+  line-height: 1.6;
+}
