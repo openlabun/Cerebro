@@ -301,6 +301,9 @@ Características clave:
 * Ajustes de balance y gamificación.
 
 ---
+## Cronograma del Proyecto
+
+![Cronograma CEREBRO](docs/cronograma.svg)
 
 # Referencias 
 
