@@ -3,7 +3,14 @@ import { resolveConfig } from '../config.js'
 function buildUrl(baseUrl, path) {
   const config = resolveConfig()
   const normalizedPath = String(path || '').replace(/^\/+/, '')
-  const resolvedBaseUrl = baseUrl === 'pvp' ? config.PVP_API_BASE_URL : config.AUTH_API_BASE_URL
+  const resolvedBaseUrl =
+    baseUrl === 'pvp'
+      ? config.PVP_API_BASE_URL
+      : baseUrl === 'pvp-auth'
+        ? config.PVP_AUTH_API_BASE_URL
+        : baseUrl === 'pvp-webhook'
+          ? config.PVP_WEBHOOK_API_BASE_URL
+        : config.AUTH_API_BASE_URL
   return normalizedPath ? `${resolvedBaseUrl}/${normalizedPath}` : resolvedBaseUrl
 }
 
@@ -164,6 +171,158 @@ export const apiClient = {
     return request('auth/verify-token', {
       method: 'GET',
       baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  pvpLogin(credentials) {
+    return request('login', {
+      method: 'POST',
+      baseUrl: 'pvp-auth',
+      body: credentials,
+    })
+  },
+
+  pvpRefresh(refreshToken) {
+    return request('refresh', {
+      method: 'POST',
+      baseUrl: 'pvp-auth',
+      body: { refreshToken },
+    })
+  },
+
+  pvpVerifyToken(accessToken) {
+    return request('verify-token', {
+      method: 'GET',
+      baseUrl: 'pvp-auth',
+      token: accessToken,
+    })
+  },
+
+  pvpLogout(accessToken) {
+    return request('logout', {
+      method: 'POST',
+      baseUrl: 'pvp-auth',
+      token: accessToken,
+    })
+  },
+
+  pvpSignupDirect(payload) {
+    return request('signup-direct', {
+      method: 'POST',
+      baseUrl: 'pvp-auth',
+      body: payload,
+    })
+  },
+
+  getPvpWebhookSubscriptions(accessToken) {
+    return request('subscriptions', {
+      method: 'GET',
+      baseUrl: 'pvp-webhook',
+      token: accessToken,
+    })
+  },
+
+  subscribePvpWebhook(payload, accessToken) {
+    return request('subscribe', {
+      method: 'POST',
+      baseUrl: 'pvp-webhook',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
+  unsubscribePvpWebhook(subscriptionId, accessToken) {
+    return request(`subscribe/${subscriptionId}`, {
+      method: 'DELETE',
+      baseUrl: 'pvp-webhook',
+      token: accessToken,
+    })
+  },
+
+  createTournament(payload, accessToken) {
+    return request('torneos', {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
+  updateTournamentState(tournamentId, payload, accessToken) {
+    return request(`torneos/${tournamentId}/estado`, {
+      method: 'PATCH',
+      baseUrl: 'auth',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
+  getTournament(tournamentId, accessToken) {
+    return request(`torneos/${tournamentId}`, {
+      method: 'GET',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  getTournamentParticipants(tournamentId, accessToken) {
+    return request(`torneos/${tournamentId}/participantes`, {
+      method: 'GET',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  joinTournament(tournamentId, accessToken) {
+    return request(`torneos/${tournamentId}/unirse`, {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+      body: {},
+    })
+  },
+
+  createPvpMatch(payload, accessToken) {
+    return request('match', {
+      method: 'POST',
+      baseUrl: 'pvp',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
+  joinPvpMatch(matchId, payload, accessToken) {
+    return request(`match/${matchId}/join`, {
+      method: 'POST',
+      baseUrl: 'pvp',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
+  getPvpMatch(matchId, accessToken, signal) {
+    return request(`match/${matchId}`, {
+      method: 'GET',
+      baseUrl: 'pvp',
+      token: accessToken,
+      signal,
+    })
+  },
+
+  makePvpMove(matchId, payload, accessToken) {
+    return request(`match/${matchId}/move`, {
+      method: 'POST',
+      baseUrl: 'pvp',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
+  forfeitPvpMatch(matchId, accessToken) {
+    return request(`match/${matchId}/forfeit`, {
+      method: 'POST',
+      baseUrl: 'pvp',
       token: accessToken,
     })
   },

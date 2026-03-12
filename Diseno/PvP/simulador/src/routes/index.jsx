@@ -5,6 +5,7 @@ import HomePage from '../pages/HomePage.jsx'
 import LoginPage from '../pages/LoginPage.jsx'
 import SignUpPage from '../pages/SignUpPage.jsx'
 import SimulationPage from '../pages/SimulationPage.jsx'
+import PvpMatchPage from '../pages/PvpMatchPage.jsx'
 import SudokuPage from '../pages/SudokuPage.jsx'
 
 const router = createBrowserRouter(
@@ -35,6 +36,10 @@ const router = createBrowserRouter(
             {
               path: 'sudoku',
               element: <SudokuPage />,
+            },
+            {
+              path: 'pvp/:matchId',
+              element: <PvpMatchPage />,
             },
           ],
         },

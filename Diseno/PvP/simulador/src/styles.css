@@ -324,6 +324,17 @@ main,
   font-size: 1rem;
 }
 
+.simulation-field {
+  display: grid;
+  gap: 0.45rem;
+  width: min(100%, 420px);
+}
+
+.simulation-field span {
+  color: var(--text);
+  font-weight: 700;
+}
+
 .section-heading {
   display: flex;
   align-items: center;
@@ -578,6 +589,46 @@ main,
   --subgrid-line: #484848;
   background: var(--bg);
   border-color: var(--border);
+}
+
+.pvp-game-card.is-loading {
+  opacity: 0.9;
+}
+
+.pvp-waiting-card {
+  display: grid;
+  gap: 1rem;
+  padding-top: 0.6rem;
+}
+
+.pvp-waiting-card h2,
+.pvp-opponent-card h3,
+.pvp-opponent-card p {
+  margin: 0;
+}
+
+.pvp-invite-box {
+  overflow-x: auto;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 88%, var(--text) 12%);
+  padding: 0.85rem 1rem;
+}
+
+.pvp-invite-box code {
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.pvp-opponent-card {
+  width: 100%;
+  max-width: 220px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
 }
 
 .sudoku-top-row {
