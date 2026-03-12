@@ -272,6 +272,58 @@ main,
   align-content: center;
 }
 
+.simulation-card--pvp {
+  gap: 2rem;
+  width: 100%;
+  padding: 1.75rem 1.5rem 1.5rem;
+  background: linear-gradient(180deg, #f8fbfe 0%, #ffffff 100%);
+  border-color: #d7e4ef;
+  box-shadow: 0 24px 50px rgba(58, 91, 116, 0.12);
+}
+
+.simulation-matchup {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 500;
+  color: #1f2b37;
+}
+
+.simulation-copy {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.simulation-title {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 2.7rem);
+  color: #1c2430;
+}
+
+.simulation-description {
+  margin: 0;
+  max-width: 58ch;
+  color: #32485d;
+  font-size: 1.2rem;
+  line-height: 1.65;
+}
+
+.simulation-feature-list {
+  margin: 0;
+  padding-left: 1.6rem;
+  display: grid;
+  gap: 0.7rem;
+  color: #697b8f;
+  font-size: 1.1rem;
+  line-height: 1.45;
+}
+
+.simulation-cta {
+  width: 100%;
+  min-height: 54px;
+  border-radius: 14px;
+  font-size: 1rem;
+}
+
 .section-heading {
   display: flex;
   align-items: center;
@@ -898,6 +950,10 @@ main,
   .sudoku-top-right {
     justify-content: flex-start;
   }
+
+  .simulation-card--pvp {
+    gap: 1.5rem;
+  }
 }
 
 @media (max-width: 640px) {
@@ -925,6 +981,19 @@ main,
 
   .board {
     width: min(100%, 92vw);
+  }
+
+  .simulation-card--pvp {
+    padding: 1.35rem 1rem 1rem;
+  }
+
+  .simulation-matchup {
+    font-size: 1.35rem;
+  }
+
+  .simulation-description,
+  .simulation-feature-list {
+    font-size: 1rem;
   }
 
   .keypad-nums .chip.number {

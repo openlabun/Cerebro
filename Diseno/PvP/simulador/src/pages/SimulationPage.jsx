@@ -1,28 +1,39 @@
 import { useAuth } from '../context/AuthContext.jsx'
 
+const pvpFeatures = [
+  'Emparejamiento por nivel.',
+  'Chat rapido con mensajes predefinidos.',
+  'Modo revancha al finalizar la partida.',
+]
+
 function SimulationPage() {
-  const { user } = useAuth()
+  const { isAuthenticated } = useAuth()
+
+  if (!isAuthenticated) return null
 
   return (
     <main>
       <section className="games-list">
-        <div className="board-card section-card simulation-card">
-          <div className="section-heading">
-            <div>
-              <p className="section-kicker">Simulacion</p>
-              <h2>Aqui va la simulacion</h2>
-            </div>
-            <span className="chip">Sesion activa</span>
-          </div>
+        <article className="board-card section-card simulation-card simulation-card--pvp">
+          <p className="simulation-matchup">1 vs 1</p>
 
-          <div className="mode-detail">
-            <strong>Jugador autenticado</strong>
-            <p className="mode-copy">
-              {user?.name || 'Usuario'} {user?.email ? `(${user.email})` : ''} ya puede entrar al
-              flujo PvP protegido.
+          <div className="simulation-copy">
+            <h1 className="simulation-title">Reta a otro jugador</h1>
+            <p className="simulation-description">
+              Ambos resuelven el mismo sudoku. Gana quien termine primero con mejor precision.
             </p>
           </div>
-        </div>
+
+          <ul className="simulation-feature-list">
+            {pvpFeatures.map((feature) => (
+              <li key={feature}>{feature}</li>
+            ))}
+          </ul>
+
+          <button className="btn primary simulation-cta" type="button">
+            Buscar rival
+          </button>
+        </article>
       </section>
     </main>
   )
