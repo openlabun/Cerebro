@@ -1,0 +1,588 @@
+import { useEffect, useRef, useState } from 'react'
+import {
+  calculateProgress,
+  calculateScore,
+  clearNotesCell,
+  countCorrectByNumber,
+  createEmptyNotes,
+  createPuzzle,
+  difficultyLevels,
+  generateSolution,
+  getDifficultyByKey,
+  getHintLimit,
+  getRandomHint,
+  isBoardSolved,
+  toggleNote,
+} from '../lib/sudoku.js'
+
+function cloneNotes(notes) {
+  return notes.map((row) => row.map((cell) => new Set(cell)))
+}
+
+function formatTime(seconds) {
+  const mm = String(Math.floor(seconds / 60)).padStart(2, '0')
+  const ss = String(seconds % 60).padStart(2, '0')
+  return `${mm}:${ss}`
+}
+
+function removeCandidateFromPeerNotes(notes, row, col, num) {
+  for (let currentCol = 0; currentCol < 9; currentCol += 1) {
+    if (currentCol !== col) notes[row][currentCol].delete(num)
+  }
+
+  for (let currentRow = 0; currentRow < 9; currentRow += 1) {
+    if (currentRow !== row) notes[currentRow][col].delete(num)
+  }
+
+  const startRow = Math.floor(row / 3) * 3
+  const startCol = Math.floor(col / 3) * 3
+  for (let currentRow = startRow; currentRow < startRow + 3; currentRow += 1) {
+    for (let currentCol = startCol; currentCol < startCol + 3; currentCol += 1) {
+      if (currentRow === row && currentCol === col) continue
+      notes[currentRow][currentCol].delete(num)
+    }
+  }
+}
+
+function noteViolatesCurrentBoard(board, row, col, num) {
+  for (let currentCol = 0; currentCol < 9; currentCol += 1) {
+    if (currentCol !== col && board[row][currentCol] === num) return 'ya existe en la fila'
+  }
+
+  for (let currentRow = 0; currentRow < 9; currentRow += 1) {
+    if (currentRow !== row && board[currentRow][col] === num) return 'ya existe en la columna'
+  }
+
+  const startRow = Math.floor(row / 3) * 3
+  const startCol = Math.floor(col / 3) * 3
+  for (let currentRow = startRow; currentRow < startRow + 3; currentRow += 1) {
+    for (let currentCol = startCol; currentCol < startCol + 3; currentCol += 1) {
+      if (currentRow === row && currentCol === col) continue
+      if (board[currentRow][currentCol] === num) return 'ya existe en el bloque 3x3'
+    }
+  }
+
+  return null
+}
+
+function revalidateAllNotes(puzzle, board, notes) {
+  for (let row = 0; row < 9; row += 1) {
+    for (let col = 0; col < 9; col += 1) {
+      if (puzzle[row][col] !== 0) continue
+      for (const note of Array.from(notes[row][col])) {
+        if (noteViolatesCurrentBoard(board, row, col, note)) {
+          notes[row][col].delete(note)
+        }
+      }
+    }
+  }
+}
+
+function buildGame(difficultyKey) {
+  const difficulty = getDifficultyByKey(difficultyKey)
+  const seed = Math.floor(Math.random() * 1_000_000)
+  const solution = generateSolution(seed)
+  const puzzle = createPuzzle(solution, difficulty.holes, seed)
+
+  return {
+    difficulty,
+    seed,
+    solution,
+    puzzle,
+    board: puzzle.map((row) => [...row]),
+    notes: createEmptyNotes(),
+  }
+}
+
+function SudokuPage() {
+  const [difficultyKey, setDifficultyKey] = useState(difficultyLevels[2].key)
+  const [solution, setSolution] = useState([])
+  const [puzzle, setPuzzle] = useState([])
+  const [board, setBoard] = useState([])
+  const [notes, setNotes] = useState(() => createEmptyNotes())
+  const [selectedCell, setSelectedCell] = useState(null)
+  const [noteMode, setNoteMode] = useState(false)
+  const [highlightEnabled, setHighlightEnabled] = useState(true)
+  const [paused, setPaused] = useState(false)
+  const [completed, setCompleted] = useState(false)
+  const [seconds, setSeconds] = useState(0)
+  const [errorCount, setErrorCount] = useState(0)
+  const [hintsUsed, setHintsUsed] = useState(0)
+  const [status, setStatus] = useState('Cargando sudoku...')
+  const [statusOk, setStatusOk] = useState(false)
+  const [score, setScore] = useState(0)
+  const [seed, setSeed] = useState(0)
+  const difficulty = getDifficultyByKey(difficultyKey)
+  const latestMetricsRef = useRef({ seconds: 0, errorCount: 0, hintsUsed: 0 })
+
+  function setGameStatus(message, ok = false) {
+    setStatus(message)
+    setStatusOk(ok)
+  }
+
+  function startNewGame(nextDifficultyKey = difficultyKey) {
+    const nextGame = buildGame(nextDifficultyKey)
+    setDifficultyKey(nextDifficultyKey)
+    setSolution(nextGame.solution)
+    setPuzzle(nextGame.puzzle)
+    setBoard(nextGame.board)
+    setNotes(nextGame.notes)
+    setSelectedCell(null)
+    setNoteMode(false)
+    setHighlightEnabled(true)
+    setPaused(false)
+    setCompleted(false)
+    setSeconds(0)
+    setErrorCount(0)
+    setHintsUsed(0)
+    setScore(0)
+    setSeed(nextGame.seed)
+    setGameStatus(`Selecciona una celda para comenzar. Limite de pistas: ${getHintLimit(nextGame.difficulty)}.`)
+  }
+
+  function finishGame(nextBoard = board) {
+    const metrics = latestMetricsRef.current
+    const nextScore = calculateScore({
+      puzzle,
+      board: nextBoard,
+      solution,
+      seconds: metrics.seconds,
+      errorCount: metrics.errorCount,
+      hintsUsed: metrics.hintsUsed,
+      difficulty,
+    })
+
+    setCompleted(true)
+    setScore(nextScore)
+    setGameStatus(
+      `Sudoku completado. Puntaje final: ${nextScore} (tiempo: ${metrics.seconds}s, errores: ${metrics.errorCount}, pistas: ${metrics.hintsUsed}).`,
+      true,
+    )
+  }
+
+  useEffect(() => {
+    startNewGame(difficultyLevels[2].key)
+  }, [])
+
+  useEffect(() => {
+    latestMetricsRef.current = { seconds, errorCount, hintsUsed }
+  }, [seconds, errorCount, hintsUsed])
+
+  useEffect(() => {
+    if (paused || completed || board.length === 0) return undefined
+
+    const interval = window.setInterval(() => {
+      setSeconds((current) => current + 1)
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+  }, [paused, completed, board.length])
+
+  useEffect(() => {
+    if (!board.length || completed || !solution.length) return
+    if (!isBoardSolved(board, solution)) return
+    finishGame(board)
+  }, [board, completed, solution])
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (!board.length) return
+
+      if (event.key.toLowerCase() === 'p') {
+        event.preventDefault()
+        setPaused((current) => !current)
+        return
+      }
+
+      if (paused || completed || !selectedCell) return
+
+      const { row, col } = selectedCell
+      if (event.key.toLowerCase() === 'n') {
+        event.preventDefault()
+        setNoteMode((current) => !current)
+        return
+      }
+
+      if (puzzle[row][col] !== 0) return
+
+      if (/^[1-9]$/.test(event.key)) {
+        event.preventDefault()
+        applyValue(Number(event.key), event.shiftKey || noteMode)
+        return
+      }
+
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        event.preventDefault()
+        if (noteMode) {
+          setNotes((currentNotes) => {
+            const nextNotes = cloneNotes(currentNotes)
+            clearNotesCell(nextNotes, row, col)
+            return nextNotes
+          })
+          setGameStatus('Notas eliminadas.')
+        } else {
+          clearSelectedCell()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [board, completed, noteMode, paused, puzzle, selectedCell])
+
+  function clearSelectedCell() {
+    if (!selectedCell || paused || completed) return
+    const { row, col } = selectedCell
+
+    if (puzzle[row][col] !== 0) {
+      setGameStatus('No puedes modificar una celda fija.')
+      return
+    }
+
+    setBoard((currentBoard) => {
+      const nextBoard = currentBoard.map((line) => [...line])
+      nextBoard[row][col] = 0
+      return nextBoard
+    })
+
+    setNotes((currentNotes) => {
+      const nextNotes = cloneNotes(currentNotes)
+      clearNotesCell(nextNotes, row, col)
+      return nextNotes
+    })
+
+    setGameStatus('Celda borrada')
+  }
+
+  function handleNoteInput(num) {
+    if (!selectedCell) return
+    const { row, col } = selectedCell
+
+    if (puzzle[row][col] !== 0) {
+      setGameStatus('No puedes poner notas en una celda fija.')
+      return
+    }
+
+    const invalidReason = noteViolatesCurrentBoard(board, row, col, num)
+    if (invalidReason) {
+      setGameStatus(`No puedes agregar la nota ${num}: ${invalidReason}.`)
+      return
+    }
+
+    setNotes((currentNotes) => {
+      const nextNotes = cloneNotes(currentNotes)
+      const result = toggleNote(nextNotes, board, row, col, num)
+      if (!result.ok) {
+        setGameStatus(result.message || 'No se pudo actualizar la nota.')
+        return currentNotes
+      }
+
+      setGameStatus(result.action === 'added' ? `Nota ${num} agregada.` : `Nota ${num} eliminada.`)
+      return nextNotes
+    })
+  }
+
+  function applyValue(num, asNote = false) {
+    if (!selectedCell || paused || completed) return
+    if (asNote) {
+      handleNoteInput(num)
+      return
+    }
+
+    const { row, col } = selectedCell
+
+    if (puzzle[row][col] !== 0) {
+      setGameStatus('No puedes modificar una celda fija.')
+      return
+    }
+
+    setBoard((currentBoard) => {
+      const previousValue = currentBoard[row][col]
+      const nextBoard = currentBoard.map((line) => [...line])
+      nextBoard[row][col] = num
+
+      setNotes((currentNotes) => {
+        const nextNotes = cloneNotes(currentNotes)
+        clearNotesCell(nextNotes, row, col)
+
+        if (num === solution[row][col]) {
+          removeCandidateFromPeerNotes(nextNotes, row, col, num)
+          revalidateAllNotes(puzzle, nextBoard, nextNotes)
+        }
+
+        return nextNotes
+      })
+
+      if (num !== solution[row][col]) {
+        setErrorCount((current) => {
+          const next = previousValue !== num ? current + 1 : current
+          setGameStatus(`Numero incorrecto. Errores: ${next}.`)
+          return next
+        })
+        return nextBoard
+      }
+
+      setGameStatus('Movimiento aplicado')
+      return nextBoard
+    })
+  }
+
+  function applyHint() {
+    if (paused || completed) return
+
+    const hintLimit = getHintLimit(difficulty)
+    if (hintLimit <= 0) {
+      setGameStatus('Esta dificultad no permite pistas.')
+      return
+    }
+
+    if (hintsUsed >= hintLimit) {
+      setGameStatus(`Ya alcanzaste el limite de ${hintLimit} pista(s) para esta dificultad.`)
+      return
+    }
+
+    const result = getRandomHint(board, solution, seed + seconds + hintsUsed + 1)
+    if (!result.ok) {
+      setGameStatus(result.message)
+      return
+    }
+
+    setBoard((currentBoard) => {
+      const nextBoard = currentBoard.map((line) => [...line])
+      nextBoard[result.row][result.col] = result.value
+      return nextBoard
+    })
+
+    setNotes((currentNotes) => {
+      const nextNotes = cloneNotes(currentNotes)
+      clearNotesCell(nextNotes, result.row, result.col)
+      removeCandidateFromPeerNotes(nextNotes, result.row, result.col, result.value)
+      const hintedBoard = board.map((line) => [...line])
+      hintedBoard[result.row][result.col] = result.value
+      revalidateAllNotes(puzzle, hintedBoard, nextNotes)
+      return nextNotes
+    })
+
+    setHintsUsed((current) => current + 1)
+    setGameStatus(`Pista aplicada. Pistas usadas: ${hintsUsed + 1}/${hintLimit}.`)
+  }
+
+  const progress = puzzle.length
+    ? calculateProgress(puzzle, board, solution)
+    : { correct: 0, editable: 0, percentage: 0 }
+  const correctCounts = solution.length ? countCorrectByNumber(board, solution) : Array(10).fill(0)
+  const selectedValue = selectedCell ? board[selectedCell.row][selectedCell.col] : 0
+  const hintLimit = getHintLimit(difficulty)
+
+  return (
+    <main>
+      <section className="games-list">
+        <div className="game-header">
+          <div>
+            <p className="section-kicker">Simulacion base</p>
+            <h1 className="sudoku-page-title">Sudoku listo para integrar en PvP</h1>
+          </div>
+          <span className="stat-chip">Jugador: tablero local</span>
+        </div>
+
+        <div className={`board-card sudoku-game-card${paused ? ' paused' : ''}`}>
+          <div className="sudoku-top-row">
+            <div className="difficulty-wrap">
+              <label htmlFor="difficulty-select">Dificultad:</label>
+              <select
+                id="difficulty-select"
+                className="difficulty-select"
+                value={difficultyKey}
+                onChange={(event) => startNewGame(event.target.value)}
+              >
+                {difficultyLevels.map((level, index) => (
+                  <option key={level.key} value={level.key}>
+                    {index + 1}. {level.label}
+                  </option>
+                ))}
+              </select>
+              <span className="difficulty-label">Dificultad: {difficulty.label}</span>
+            </div>
+
+            <div className="sudoku-top-right">
+              <span className="timer-display">{formatTime(seconds)}</span>
+              <span className="stat-chip">Errores: {errorCount}</span>
+              <span className="stat-chip">Pistas: {hintsUsed}</span>
+              <button className="btn ghost btn-pause" type="button" onClick={() => setPaused((current) => !current)}>
+                {paused ? 'Reanudar' : 'Pausar'}
+              </button>
+              <button className="btn btn-new-game" type="button" onClick={() => startNewGame(difficultyKey)}>
+                Nuevo Juego
+              </button>
+            </div>
+          </div>
+
+          <div className="sudoku-main">
+            <div className="sudoku-grid-wrap">
+              <div className="board" role="grid" aria-label="Tablero Sudoku">
+                {board.map((rowValues, rowIndex) =>
+                  rowValues.map((value, colIndex) => {
+                    const isPrefilled = puzzle[rowIndex]?.[colIndex] !== 0
+                    const isSelected = selectedCell?.row === rowIndex && selectedCell?.col === colIndex
+                    const isPeer =
+                      highlightEnabled &&
+                      selectedCell &&
+                      (selectedCell.row === rowIndex || selectedCell.col === colIndex)
+                    const isSameValue =
+                      highlightEnabled && selectedValue !== 0 && value !== 0 && value === selectedValue
+                    const isError = !isPrefilled && value !== 0 && solution[rowIndex]?.[colIndex] !== value
+
+                    const classNames = [
+                      'cell',
+                      isPrefilled ? 'prefilled' : '',
+                      isSelected ? 'selected' : '',
+                      isPeer ? 'highlight-peer' : '',
+                      isSameValue ? 'highlight-same' : '',
+                      isError ? 'error' : '',
+                      notes[rowIndex]?.[colIndex]?.size ? 'has-notes' : '',
+                      (colIndex + 1) % 3 === 0 && colIndex !== 8 ? 'block-right' : '',
+                      (rowIndex + 1) % 3 === 0 && rowIndex !== 8 ? 'block-bottom' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+
+                    return (
+                      <button
+                        key={`${rowIndex}-${colIndex}`}
+                        className={classNames}
+                        type="button"
+                        onClick={() => setSelectedCell({ row: rowIndex, col: colIndex })}
+                      >
+                        {value !== 0 ? (
+                          <span>{value}</span>
+                        ) : notes[rowIndex]?.[colIndex]?.size ? (
+                          <div className="notes-grid">
+                            {Array.from({ length: 9 }, (_, offset) => offset + 1).map((note) => (
+                              <div
+                                key={note}
+                                className={`note${selectedValue !== 0 && note === selectedValue ? ' highlight-same-note' : ''}`}
+                              >
+                                {notes[rowIndex][colIndex].has(note) ? note : ''}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </button>
+                    )
+                  }),
+                )}
+              </div>
+            </div>
+
+            <div className="sudoku-controls">
+              <div className="keypad-nums" aria-label="Teclado numerico">
+                {Array.from({ length: 9 }, (_, index) => index + 1).map((num) => {
+                  const unavailable = correctCounts[num] >= 9
+                  return (
+                    <button
+                      key={num}
+                      className={`chip number${unavailable ? ' num-unavailable' : ''}`}
+                      type="button"
+                      disabled={unavailable}
+                      onClick={() => applyValue(num, noteMode)}
+                    >
+                      {num}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="board-actions controls icon-actions">
+                <button id="clear-cell" className="btn-control btn-icon-circle" type="button" onClick={clearSelectedCell}>
+                  <span className="btn-icon" aria-hidden="true">
+                    CLR
+                  </span>
+                </button>
+                <button
+                  id="toggle-notes"
+                  className={`btn-control btn-icon-circle${noteMode ? ' active' : ''}`}
+                  type="button"
+                  aria-pressed={noteMode}
+                  onClick={() => {
+                    if (paused || completed) return
+                    setNoteMode((current) => !current)
+                    setGameStatus(!noteMode ? 'Modo notas: ACTIVADO.' : 'Modo notas: desactivado')
+                  }}
+                >
+                  <span className="btn-icon-badge notes-badge">{noteMode ? 'ON' : 'OFF'}</span>
+                  <span className="btn-icon" aria-hidden="true">
+                    N
+                  </span>
+                </button>
+                <button id="hint" className="btn-control btn-icon-circle" type="button" onClick={applyHint}>
+                  <span className="btn-icon-badge hint-badge">{hintsUsed}</span>
+                  <span className="btn-icon" aria-hidden="true">
+                    H
+                  </span>
+                </button>
+              </div>
+
+              <div className="board-actions controls notes-actions">
+                <button
+                  id="toggle-highlights"
+                  className={`btn-control${highlightEnabled ? ' active' : ''}`}
+                  type="button"
+                  aria-pressed={highlightEnabled}
+                  onClick={() => {
+                    if (paused || completed) return
+                    setHighlightEnabled((current) => !current)
+                  }}
+                >
+                  Resaltar: {highlightEnabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="sudoku-bottom">
+            <div className="progress-wrapper" aria-label="Progreso del tablero">
+              <div className="progress-track">
+                <div className="progress-fill" style={{ width: `${progress.percentage}%` }} />
+              </div>
+              <p className="progress-text">
+                {progress.correct}/{progress.editable} celdas correctas ({progress.percentage}%)
+              </p>
+            </div>
+
+            <p className={`status${statusOk ? ' ok' : ''}`}>{status}</p>
+            <p className="mode-copy">Seed: {seed} | Pistas maximas: {hintLimit} | Atajos: `N` notas, `P` pausa.</p>
+          </div>
+        </div>
+      </section>
+
+      {paused ? (
+        <div className="sudoku-pause-overlay" role="dialog" aria-modal="true">
+          <div className="sudoku-pause-card">
+            <h3 className="sudoku-pause-title">Juego en pausa</h3>
+            <p className="sudoku-pause-text">El tiempo esta detenido. Presiona reanudar para continuar.</p>
+            <button className="btn primary sudoku-pause-resume-btn" type="button" onClick={() => setPaused(false)}>
+              Reanudar
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {completed ? (
+        <div className="sudoku-pause-overlay" role="alertdialog" aria-modal="true">
+          <div className="sudoku-pause-card sudoku-completion-card">
+            <h3 className="sudoku-pause-title">Sudoku completado</h3>
+            <p className="sudoku-pause-text">Puntaje: {score}</p>
+            <p className="sudoku-pause-text">
+              Tiempo: {formatTime(seconds)} | Errores: {errorCount} | Pistas: {hintsUsed}
+            </p>
+            <button className="btn primary sudoku-pause-resume-btn" type="button" onClick={() => startNewGame(difficultyKey)}>
+              Jugar otra vez
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </main>
+  )
+}
+
+export default SudokuPage

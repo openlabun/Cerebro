@@ -3,18 +3,18 @@ import { useAuth } from '../context/AuthContext.jsx'
 
 const featureCards = [
   {
-    title: 'Salas PvP',
-    description: 'Crea una base para listar partidas activas, privadas o por matchmaking.',
+    title: 'Sudoku base',
+    description: 'Tablero completo en React con notas, pistas, pausa, progreso y validacion.',
     badge: '01',
   },
   {
-    title: 'Estado de partida',
-    description: 'Reserva este espacio para sincronizar turnos, cronometro y tablero.',
+    title: 'Semilla compartida',
+    description: 'El generador local permite reutilizar la misma partida al conectar el flujo PvP.',
     badge: '02',
   },
   {
     title: 'Resultados',
-    description: 'Prepara una vista ligera para ranking, revancha y resumen del duelo.',
+    description: 'El puntaje local sirve como base para precision, desempates y postpartida.',
     badge: '03',
   },
 ]
@@ -27,27 +27,27 @@ function HomePage() {
       <section className="hero welcome-banner">
         <div>
           <p className="eyebrow">Diseno / PvP</p>
-          <h1>Simulador React + Vite</h1>
+          <h1>Sudoku React listo para PvP</h1>
           <p className="lead">
-            Base visual alineada con IyR para mantener consistencia grafica en los frontends
-            de la aplicacion.
+            El simulador ahora replica el Sudoku del frontend vanilla de IyR y deja lista la
+            base de juego para compartir tablero, cronometro y validaciones en duelos.
           </p>
 
           <div className="hero-actions">
-            <Link className="btn primary" to={isAuthenticated ? '/simulacion' : '/login'}>
-              {isAuthenticated ? 'Entrar al simulador' : 'Iniciar sesion'}
+            <Link className="btn primary" to={isAuthenticated ? '/sudoku' : '/login'}>
+              {isAuthenticated ? 'Jugar Sudoku' : 'Iniciar sesion'}
             </Link>
             <Link className="btn light" to="/signup">
               Crear cuenta
             </Link>
             <button className="btn ghost" type="button">
-              Configurar duelo
+              Preparar PvP
             </button>
           </div>
 
           <div className="board-actions">
-            <span className="chip">Matchmaking</span>
-            <span className="chip">1v1</span>
+            <span className="chip">Sudoku</span>
+            <span className="chip">Semilla comun</span>
             <span className="chip">Tiempo real</span>
             {isAuthenticated ? <span className="chip">Sesion activa: {user?.email}</span> : null}
           </div>
@@ -55,8 +55,8 @@ function HomePage() {
 
         <aside className="board-card mode-visual-card pvp-card">
           <div className="mode-visual-inner">
-            <span>PvP</span>
-            <small>Frontend listo para flujo competitivo</small>
+            <span>Sudoku</span>
+            <small>Base de tablero para el flujo competitivo</small>
           </div>
         </aside>
       </section>
@@ -66,7 +66,7 @@ function HomePage() {
           <div className="section-heading">
             <div>
               <p className="section-kicker">Modulos base</p>
-              <h2>{isAuthenticated ? 'Sesion habilitada para flujo PvP' : 'Bloques iniciales del simulador'}</h2>
+              <h2>{isAuthenticated ? 'Sesion habilitada para probar el Sudoku base' : 'Base visual y logica del Sudoku'}</h2>
             </div>
             <span className="stat-chip">React + Vite</span>
           </div>
@@ -85,8 +85,8 @@ function HomePage() {
             <strong>{isAuthenticated ? `Bienvenido, ${user?.name || user?.email}` : 'Autenticacion integrada'}</strong>
             <p className="mode-copy">
               {isAuthenticated
-                ? 'Tu sesion se guarda en localStorage y la ruta de simulacion queda protegida por token.'
-                : 'El simulador ya cuenta con cliente API, almacenamiento de sesion y vistas dedicadas para login y registro.'}
+                ? 'Tu sesion protege la ruta del Sudoku y deja lista la transicion hacia partidas PvP autenticadas.'
+                : 'El frontend ya cuenta con cliente API, almacenamiento de sesion y ahora un Sudoku funcional como base del modo competitivo.'}
             </p>
           </div>
         </div>

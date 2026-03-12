@@ -34,6 +34,12 @@ function Header() {
         >
           Simulacion
         </NavLink>
+        <NavLink
+          to="/sudoku"
+          className={({ isActive }) => `nav-btn${isActive ? ' active' : ''}`}
+        >
+          Sudoku
+        </NavLink>
       </nav>
       <div className="session-actions">
         {isAuthenticated && user?.name ? (
