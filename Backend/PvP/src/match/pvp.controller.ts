@@ -36,7 +36,12 @@ export class PvpController {
     @Body() dto: CreateMatchDto,
   ): Promise<unknown> {
     const usuarioId = this.extractUserId(req.accessToken);
-    return this.matchService.createMatch(dto.torneoId, usuarioId, req.accessToken, dto.tokenC1);
+    return this.matchService.createMatch(
+      dto.torneoId,
+      usuarioId,
+      req.accessToken,
+      dto.tokenC1,
+    );
   }
 
   @Post('match/:id/join')
@@ -46,7 +51,13 @@ export class PvpController {
     @Body() dto: JoinMatchDto,
   ): Promise<unknown> {
     const usuarioId = this.extractUserId(req.accessToken);
-    return this.matchService.joinMatch(id, usuarioId, req.accessToken, dto.tokenC1);
+    return this.matchService.joinMatch(
+      id,
+      usuarioId,
+      req.accessToken,
+      dto.tokenC1,
+      dto.inviteToken,
+    );
   }
 
   @Post('match/:id/move')

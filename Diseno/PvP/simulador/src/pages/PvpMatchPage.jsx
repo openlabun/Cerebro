@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import SudokuBoard from '../components/SudokuBoard.jsx'
-import { EraseIcon, NotesIcon } from '../components/SudokuControlIcons.jsx'
+import SudokuControlsPanel from '../components/SudokuControlsPanel.jsx'
 import { resolveConfig } from '../config.js'
 import {
   SudokuGameProvider,
@@ -10,14 +10,23 @@ import {
   useSudokuGame,
 } from '../context/SudokuGameContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useSudokuKeyboardControls } from '../hooks/useSudokuKeyboardControls.js'
 import { generatePvpBoard } from '../lib/pvpSudoku.js'
 import { clearNotesCell, createEmptyNotes } from '../lib/sudoku.js'
 import { apiClient } from '../services/apiClient.js'
 
-function buildInviteLinkWithTournament(matchId, tournamentId) {
+function buildInviteLink(matchId, { inviteToken = '', tournamentId = '' } = {}) {
   const basePath = `${import.meta.env.BASE_URL || '/'}pvp/${matchId}`
   const params = new URLSearchParams({ join: '1' })
-  if (tournamentId) params.set('torneoId', tournamentId)
+  const normalizedTournamentId = String(tournamentId || '').trim()
+  const normalizedInviteToken = String(inviteToken || '').trim()
+
+  if (normalizedTournamentId) {
+    params.set('torneoId', normalizedTournamentId)
+  } else if (normalizedInviteToken) {
+    params.set('inviteToken', normalizedInviteToken)
+  }
+
   return new URL(`${basePath}?${params.toString()}`, window.location.origin).toString()
 }
 
@@ -31,6 +40,27 @@ function findFirstEditableCell(puzzle, boardState) {
   }
 
   return null
+}
+
+function countEditableCells(puzzle) {
+  return puzzle.reduce(
+    (total, row) => total + row.reduce((rowTotal, value) => rowTotal + (value === 0 ? 1 : 0), 0),
+    0,
+  )
+}
+
+function countResolvedCells(puzzle, boardState) {
+  if (!Array.isArray(boardState) || !boardState.length) return 0
+
+  return boardState.reduce(
+    (total, row, rowIndex) =>
+      total +
+      row.reduce(
+        (rowTotal, value, colIndex) => rowTotal + (puzzle[rowIndex]?.[colIndex] === 0 && value !== 0 ? 1 : 0),
+        0,
+      ),
+    0,
+  )
 }
 
 function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
@@ -75,9 +105,14 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
   const c1AccessToken = session?.c1AccessToken || ''
   const c2AccessToken = session?.c2AccessToken || ''
   const shouldAutoJoin = searchParams.get('join') === '1'
+  const requestedInviteToken = searchParams.get('inviteToken') || ''
   const requestedTournamentId = searchParams.get('torneoId') || ''
   const tournamentId = requestedTournamentId || match?.torneoId || ''
-  const inviteLink = useMemo(() => buildInviteLinkWithTournament(matchId, tournamentId), [matchId, tournamentId])
+  const inviteToken = tournamentId ? '' : requestedInviteToken || match?.inviteToken || ''
+  const inviteLink = useMemo(
+    () => buildInviteLink(matchId, { inviteToken, tournamentId }),
+    [inviteToken, matchId, tournamentId],
+  )
   const webhookReceiverUrl = config.PVP_WEBHOOK_RECEIVER_URL
 
   useEffect(() => {
@@ -191,14 +226,28 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
     const controller = new AbortController()
 
     async function init() {
-      if (!c1AccessToken || !c2AccessToken) return
+      if (!c2AccessToken) return
+      if (shouldAutoJoin && !requestedInviteToken && !requestedTournamentId) {
+        if (mounted) {
+          setLoading(false)
+          setStatus('Este enlace de invitacion no es valido.')
+        }
+        return
+      }
 
       try {
         setLoading(true)
         await ensureWebhookSubscription()
         if (shouldAutoJoin) {
-          await ensureTournamentJoined(requestedTournamentId || tournamentId)
-          await apiClient.joinPvpMatch(matchId, { tokenC1: c1AccessToken }, c2AccessToken)
+          if (requestedTournamentId) {
+            if (!c1AccessToken) {
+              throw new Error('No hay sesion principal disponible para unirse a este match.')
+            }
+            await ensureTournamentJoined(requestedTournamentId)
+            await apiClient.joinPvpMatch(matchId, { tokenC1: c1AccessToken }, c2AccessToken)
+          } else {
+            await apiClient.joinPvpMatch(matchId, { inviteToken: requestedInviteToken }, c2AccessToken)
+          }
           if (mounted) setStatus('Rival unido. Preparando partida...', true)
         }
 
@@ -244,7 +293,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       mounted = false
       controller.abort()
     }
-  }, [c1AccessToken, c2AccessToken, matchId, requestedTournamentId, shouldAutoJoin])
+  }, [c1AccessToken, c2AccessToken, matchId, requestedInviteToken, requestedTournamentId, shouldAutoJoin])
 
   useEffect(() => {
     if (!matchId || !c2AccessToken) return undefined
@@ -383,31 +432,6 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
     }
   }
 
-  async function playTestMove(kind) {
-    if (!selectedCell || !match || match.estado !== 'ACTIVE' || submittingMove) return
-
-    const { row, col } = selectedCell
-    if (puzzle[row]?.[col] !== 0 || confirmedBoard[row]?.[col] !== 0) {
-      setStatus('Selecciona una celda editable para la prueba.')
-      return
-    }
-
-    if (kind === 'correct') {
-      await applyValue(solution[row][col], false)
-      return
-    }
-
-    const wrongValue = Array.from({ length: 9 }, (_, index) => index + 1).find(
-      (candidate) => candidate !== solution[row][col],
-    )
-    if (!wrongValue) {
-      setStatus('No se pudo generar una jugada incorrecta de prueba.')
-      return
-    }
-
-    await applyValue(wrongValue, false)
-  }
-
   async function handleForfeit() {
     if (!match || match.estado !== 'ACTIVE' || forfeiting) return
 
@@ -430,12 +454,35 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
     }
   }
 
+  function handleHintUnavailable() {
+    setStatus('Las pistas no estan disponibles en PvP.')
+  }
+
   const myGame = match?.myGame || null
   const opponent = match?.opponent || null
   const startedAt = match?.fechaInicio ? new Date(match.fechaInicio).getTime() : null
   const elapsedSeconds = startedAt ? Math.floor((clockNow - startedAt) / 1000) : 0
   const isWaiting = match?.estado === 'WAITING'
   const isActive = match?.estado === 'ACTIVE'
+  const editableCellCount = useMemo(() => countEditableCells(puzzle), [puzzle])
+  const resolvedCellCount = useMemo(() => {
+    if (typeof myGame?.correctCells === 'number') return myGame.correctCells
+    return countResolvedCells(puzzle, confirmedBoard)
+  }, [confirmedBoard, myGame?.correctCells, puzzle])
+  const progressPercentage = editableCellCount > 0 ? Math.round((resolvedCellCount / editableCellCount) * 100) : 0
+
+  useSudokuKeyboardControls({
+    board,
+    puzzle,
+    selectedCell,
+    noteMode,
+    isEnabled: isActive && !submittingMove && !loading,
+    onToggleNoteMode: () => setNoteMode((current) => !current),
+    onApplyValue: applyValue,
+    onClearCell: handleClearCell,
+    setNotes,
+    setStatus,
+  })
 
   return (
     <main>
@@ -461,9 +508,6 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
               <span className="timer-display">{formatSudokuTime(elapsedSeconds)}</span>
               <span className="stat-chip">Rival: {opponent?.score ?? 0}</span>
               <span className="stat-chip">{opponent?.finished ? 'Rival listo' : 'Rival en juego'}</span>
-              <button className="btn ghost btn-pause" type="button" onClick={() => navigate('/simulacion')}>
-                Salir
-              </button>
               <button className="btn btn-new-game" type="button" disabled={!isActive || forfeiting} onClick={handleForfeit}>
                 {forfeiting ? 'Abandonando...' : 'Abandonar'}
               </button>
@@ -494,69 +538,19 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
                 <SudokuBoard ariaLabel="Tablero PvP" />
               </div>
 
-              <div className="sudoku-controls">
-                <div className="keypad-nums" aria-label="Teclado numerico">
-                  {Array.from({ length: 9 }, (_, index) => index + 1).map((num) => (
-                    <button
-                      key={num}
-                      className="chip number"
-                      type="button"
-                      disabled={!isActive || submittingMove}
-                      onClick={() => applyValue(num, noteMode)}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="board-actions controls icon-actions">
-                  <button
-                    className="btn-control btn-icon-circle"
-                    type="button"
-                    aria-label="Estado de partida"
-                    title="Estado"
-                    onClick={() => setStatus('Partida en curso.', true)}
-                  >
-                    <span className="btn-icon btn-icon-text" aria-hidden="true">
-                      OK
-                    </span>
-                  </button>
-                  <button
-                    className={`btn-control btn-icon-circle${noteMode ? ' active' : ''}`}
-                    type="button"
-                    aria-pressed={noteMode}
-                    aria-label="Modo notas"
-                    title="Notas"
-                    onClick={() => setNoteMode((current) => !current)}
-                  >
-                    <span className="btn-icon-badge notes-badge">{noteMode ? 'ON' : 'OFF'}</span>
-                    <NotesIcon />
-                  </button>
-                  <button className="btn-control btn-icon-circle" type="button" aria-label="Borrar celda" title="Borrar" onClick={handleClearCell}>
-                    <EraseIcon />
-                  </button>
-                </div>
-
-                <div className="board-actions controls notes-actions">
-                  <button
-                    className={`btn-control${highlightEnabled ? ' active' : ''}`}
-                    type="button"
-                    aria-pressed={highlightEnabled}
-                    onClick={() => setHighlightEnabled((current) => !current)}
-                  >
-                    Resaltar: {highlightEnabled ? 'ON' : 'OFF'}
-                  </button>
-                </div>
-
-                <div className="board-actions controls notes-actions">
-                  <button className="btn-control" type="button" disabled={!isActive || submittingMove} onClick={() => playTestMove('correct')}>
-                    Jugada correcta
-                  </button>
-                  <button className="btn-control" type="button" disabled={!isActive || submittingMove} onClick={() => playTestMove('incorrect')}>
-                    Jugada incorrecta
-                  </button>
-                </div>
-
+              <SudokuControlsPanel
+                noteMode={noteMode}
+                highlightEnabled={highlightEnabled}
+                hintCount={0}
+                keypadDisabled={!isActive || submittingMove}
+                clearDisabled={!isActive || submittingMove}
+                noteDisabled={!isActive || submittingMove}
+                onApplyValue={(num) => applyValue(num, noteMode)}
+                onClearCell={handleClearCell}
+                onHint={handleHintUnavailable}
+                onToggleNoteMode={() => setNoteMode((current) => !current)}
+                onToggleHighlight={() => setHighlightEnabled((current) => !current)}
+              >
                 <div className="pvp-opponent-card">
                   <h3>Rival</h3>
                   <p>Puntaje: {opponent?.score ?? 0}</p>
@@ -564,11 +558,21 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
                   <p>Celdas correctas: {opponent?.correctCells ?? 0}</p>
                   <p>{opponent?.finished ? 'Termino su tablero' : 'Sigue jugando'}</p>
                 </div>
-              </div>
+              </SudokuControlsPanel>
             </div>
           )}
 
           <div className="sudoku-bottom">
+            {!isWaiting && match ? (
+              <div className="progress-wrapper" aria-label="Progreso del tablero">
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${progressPercentage}%` }} />
+                </div>
+                <p className="progress-text">
+                  {resolvedCellCount}/{editableCellCount} celdas correctas ({progressPercentage}%)
+                </p>
+              </div>
+            ) : null}
             <p className={`status${statusOk ? ' ok' : ''}`}>{status}</p>
             <p className="mode-copy">Completa tu tablero y supera el progreso del rival.</p>
           </div>

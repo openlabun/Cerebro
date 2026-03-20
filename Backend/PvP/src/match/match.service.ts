@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
@@ -18,6 +19,7 @@ import { getUserIdFromAccessToken } from '../common/utils/jwt.utils';
 const LEGACY_ROW_JOIN = -1;
 const LEGACY_ROW_FORFEIT = -2;
 const LEGACY_ROW_FINISHED = -3;
+const STANDALONE_MATCH_PREFIX = 'standalone:';
 
 interface MatchRecord {
   _id?: string;
@@ -60,7 +62,8 @@ interface PlayerProgress {
 
 interface MatchState {
   _id: string;
-  torneoId: string;
+  torneoId: string | null;
+  inviteToken: string | null;
   jugador1Id: string;
   jugador2Id: string | null;
   estado: 'WAITING' | 'ACTIVE' | 'FINISHED' | 'FORFEIT';
@@ -122,7 +125,7 @@ export class MatchService {
     private readonly rankingService: RankingService,
   ) {
     this.contenedor1Url =
-      this.config.getOrThrow<string>('CONTENEDOR1_BASE_URL');
+      this.config.get<string>('CONTENEDOR1_BASE_URL')?.trim() ?? '';
   }
 
   private stripSolution(state: MatchState) {
@@ -133,6 +136,59 @@ export class MatchService {
   private cacheUserToken(userId: string, token: string) {
     if (!userId || !token) return;
     this.userTokenCache.set(userId, token);
+  }
+
+  private normalizeOptionalString(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim();
+    return normalized ? normalized : null;
+  }
+
+  private generateInviteToken(): string {
+    return randomBytes(12).toString('hex');
+  }
+
+  private buildStandaloneScopeId(inviteToken: string): string {
+    return `${STANDALONE_MATCH_PREFIX}${inviteToken}`;
+  }
+
+  private extractStandaloneInviteToken(torneoId: string | null): string | null {
+    const normalized = this.normalizeOptionalString(torneoId);
+    if (!normalized?.startsWith(STANDALONE_MATCH_PREFIX)) return null;
+
+    const inviteToken = normalized.slice(STANDALONE_MATCH_PREFIX.length).trim();
+    return inviteToken || null;
+  }
+
+  private ensureContenedor1Enabled() {
+    if (this.contenedor1Url) return;
+    throw new BadRequestException(
+      'La integracion con torneos PvP no esta configurada en este entorno.',
+    );
+  }
+
+  private requireInviteToken(
+    expectedInviteToken: string | null,
+    providedInviteToken?: string,
+  ) {
+    const expected = this.normalizeOptionalString(expectedInviteToken);
+    const provided = this.normalizeOptionalString(providedInviteToken);
+
+    if (!expected) {
+      throw new BadRequestException(
+        'El match no tiene un token de invitacion valido.',
+      );
+    }
+
+    if (!provided) {
+      throw new ForbiddenException(
+        'Se requiere un token de invitacion para unirse a esta partida.',
+      );
+    }
+
+    if (provided !== expected) {
+      throw new ForbiddenException('Token de invitacion invalido.');
+    }
   }
 
   private rememberMatchOwnerToken(matchId: string, ownerId: string, token: string) {
@@ -273,6 +329,7 @@ export class MatchService {
     return {
       _id: safe._id,
       torneoId: safe.torneoId,
+      inviteToken: safe.inviteToken,
       jugador1Id: safe.jugador1Id,
       jugador2Id: safe.jugador2Id,
       estado: safe.estado,
@@ -447,9 +504,14 @@ export class MatchService {
         )
       : null;
 
+    const storedTorneoId = this.normalizeOptionalString(base.torneoId);
+    const standaloneInviteToken =
+      this.extractStandaloneInviteToken(storedTorneoId);
+
     const state: MatchState = {
       _id: base._id!,
-      torneoId: base.torneoId,
+      torneoId: standaloneInviteToken ? null : storedTorneoId,
+      inviteToken: standaloneInviteToken,
       jugador1Id: base.jugador1Id,
       jugador2Id: legacy.jugador2Id,
       estado: legacy.estado,
@@ -471,6 +533,7 @@ export class MatchService {
   }
 
   private async verifyTorneoPvp(torneoId: string, tokenC1: string) {
+    this.ensureContenedor1Enabled();
     try {
       const res = await firstValueFrom(
         this.http.get(`${this.contenedor1Url}/torneos/${torneoId}`, {
@@ -501,6 +564,7 @@ export class MatchService {
   }
 
   private async verifyParticipante(torneoId: string, tokenC1: string) {
+    this.ensureContenedor1Enabled();
     const c1UserId = getUserIdFromAccessToken(tokenC1);
     if (!c1UserId) {
       throw new BadRequestException(
@@ -537,21 +601,35 @@ export class MatchService {
   }
 
   async createMatch(
-    torneoId: string,
+    torneoId: string | undefined,
     usuarioId: string,
     token: string,
-    tokenC1: string,
+    tokenC1?: string,
   ) {
     this.cacheUserToken(usuarioId, token);
-    await this.verifyTorneoPvp(torneoId, tokenC1);
-    await this.verifyParticipante(torneoId, tokenC1);
+    const normalizedTorneoId = this.normalizeOptionalString(torneoId);
+    const normalizedTokenC1 = this.normalizeOptionalString(tokenC1);
+
+    if (normalizedTorneoId) {
+      if (!normalizedTokenC1) {
+        throw new BadRequestException(
+          'Se requiere tokenC1 para crear un match asociado a torneo.',
+        );
+      }
+      await this.verifyTorneoPvp(normalizedTorneoId, normalizedTokenC1);
+      await this.verifyParticipante(normalizedTorneoId, normalizedTokenC1);
+    }
 
     const seed = Math.floor(Math.random() * 1000000);
     const { solution } = this.sudokuService.generateBoard(seed);
+    const inviteToken = this.generateInviteToken();
+    const storedTorneoId = normalizedTorneoId
+      ? normalizedTorneoId
+      : this.buildStandaloneScopeId(inviteToken);
 
     const result = await this.roble.insert<MatchRecord>(token, 'Matches', [
       {
-        torneoId,
+        torneoId: storedTorneoId,
         jugador1Id: usuarioId,
         jugador2Id: null,
         estado: 'WAITING',
@@ -567,6 +645,15 @@ export class MatchService {
     ]);
 
     const created = result.inserted[0];
+    if (!created?._id) {
+      const reason =
+        result.skipped?.[0]?.reason ?? 'ROBLE no reporto el motivo del rechazo';
+      this.logger.error(
+        `createMatch skipped by ROBLE: ${JSON.stringify(result.skipped || [])}`,
+      );
+      throw new BadRequestException(`No se pudo crear el match: ${reason}`);
+    }
+
     this.rememberMatchOwnerToken(created._id!, usuarioId, token);
     const state = await this.rebuildState(created._id!, token);
     return this.stripSolution(state);
@@ -576,7 +663,8 @@ export class MatchService {
     matchId: string,
     usuarioId: string,
     token: string,
-    tokenC1: string,
+    tokenC1?: string,
+    inviteToken?: string,
   ) {
     this.cacheUserToken(usuarioId, token);
     const state = await this.rebuildState(matchId, token);
@@ -586,7 +674,17 @@ export class MatchService {
       throw new BadRequestException('No puedes jugar contra ti mismo');
     }
 
-    await this.verifyParticipante(state.torneoId, tokenC1);
+    if (state.torneoId) {
+      const normalizedTokenC1 = this.normalizeOptionalString(tokenC1);
+      if (!normalizedTokenC1) {
+        throw new BadRequestException(
+          'Se requiere tokenC1 para unirse a este match asociado a torneo.',
+        );
+      }
+      await this.verifyParticipante(state.torneoId, normalizedTokenC1);
+    } else {
+      this.requireInviteToken(state.inviteToken, inviteToken);
+    }
 
     try {
       await this.updateMatchWithFallback(matchId, state.jugador1Id, token, {

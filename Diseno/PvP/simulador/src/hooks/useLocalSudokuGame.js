@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { cloneNotes, useSudokuGame } from '../context/SudokuGameContext.jsx'
+import { useSudokuKeyboardControls } from './useSudokuKeyboardControls.js'
 import { apiClient } from '../services/apiClient.js'
 import {
   calculateProgress,
@@ -504,51 +505,19 @@ export function useLocalSudokuGame() {
     finishGame(board)
   }, [board, completed, solution])
 
-  useEffect(() => {
-    function handleKeyDown(event) {
-      if (!board.length) return
-
-      if (event.key.toLowerCase() === 'p') {
-        event.preventDefault()
-        setPaused((current) => !current)
-        return
-      }
-
-      if (paused || completed || !selectedCell) return
-
-      const { row, col } = selectedCell
-      if (event.key.toLowerCase() === 'n') {
-        event.preventDefault()
-        setNoteMode((current) => !current)
-        return
-      }
-
-      if (puzzle[row][col] !== 0) return
-
-      if (/^[1-9]$/.test(event.key)) {
-        event.preventDefault()
-        applyValue(Number(event.key), event.shiftKey || noteMode)
-        return
-      }
-
-      if (event.key === 'Backspace' || event.key === 'Delete') {
-        event.preventDefault()
-        if (noteMode) {
-          setNotes((currentNotes) => {
-            const nextNotes = cloneNotes(currentNotes)
-            clearNotesCell(nextNotes, row, col)
-            return nextNotes
-          })
-          setStatus('Notas eliminadas.')
-        } else {
-          clearSelectedCell()
-        }
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [board, clearSelectedCell, completed, noteMode, paused, puzzle, selectedCell, setNoteMode, setNotes, setStatus])
+  useSudokuKeyboardControls({
+    board,
+    puzzle,
+    selectedCell,
+    noteMode,
+    isEnabled: !paused && !completed,
+    onPauseToggle: () => setPaused((current) => !current),
+    onToggleNoteMode: () => setNoteMode((current) => !current),
+    onApplyValue: applyValue,
+    onClearCell: clearSelectedCell,
+    setNotes,
+    setStatus,
+  })
 
   function applyValue(num, asNote = false) {
     if (!selectedCell || paused || completed) return

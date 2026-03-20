@@ -5,12 +5,10 @@ const DEFAULT_CONFIG = Object.freeze({
   PVP_WEBHOOK_API_BASE_URL: '/api/pvp-webhook',
   PVP_WEBHOOK_RECEIVER_URL: 'http://frontend/simulation/pvp/api/webhooks',
   AUTH_STORAGE_KEY: 'cerebro_auth_session',
-  PVP_DEFAULT_TOURNAMENT_ID: '',
 })
 
 export function resolveConfig() {
   const authBaseUrl = import.meta.env.VITE_AUTH_API_BASE_URL
-  const defaultTournamentId = import.meta.env.VITE_PVP_TOURNAMENT_ID
 
   return {
     AUTH_API_BASE_URL:
@@ -22,7 +20,5 @@ export function resolveConfig() {
     PVP_WEBHOOK_API_BASE_URL: DEFAULT_CONFIG.PVP_WEBHOOK_API_BASE_URL,
     PVP_WEBHOOK_RECEIVER_URL: DEFAULT_CONFIG.PVP_WEBHOOK_RECEIVER_URL,
     AUTH_STORAGE_KEY: DEFAULT_CONFIG.AUTH_STORAGE_KEY,
-    PVP_DEFAULT_TOURNAMENT_ID:
-      typeof defaultTournamentId === 'string' ? defaultTournamentId.trim() : DEFAULT_CONFIG.PVP_DEFAULT_TOURNAMENT_ID,
   }
 }

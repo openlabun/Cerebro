@@ -1,5 +1,5 @@
 import SudokuBoard from '../components/SudokuBoard.jsx'
-import { EraseIcon, HintIcon, NotesIcon } from '../components/SudokuControlIcons.jsx'
+import SudokuControlsPanel from '../components/SudokuControlsPanel.jsx'
 import { SudokuGameProvider } from '../context/SudokuGameContext.jsx'
 import { formatSudokuTime } from '../context/SudokuGameContext.jsx'
 import { useLocalSudokuGame } from '../hooks/useLocalSudokuGame.js'
@@ -86,71 +86,24 @@ function SudokuPageContent() {
               <SudokuBoard ariaLabel="Tablero Sudoku" />
             </div>
 
-            <div className="sudoku-controls">
-              <div className="keypad-nums" aria-label="Teclado numerico">
-                {Array.from({ length: 9 }, (_, index) => index + 1).map((num) => {
-                  const unavailable = correctCounts[num] >= 9
-                  return (
-                    <button
-                      key={num}
-                      className={`chip number${unavailable ? ' num-unavailable' : ''}`}
-                      type="button"
-                      disabled={unavailable}
-                      onClick={() => applyValue(num, noteMode)}
-                    >
-                      {num}
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="board-actions controls icon-actions">
-                <button
-                  id="clear-cell"
-                  className="btn-control btn-icon-circle"
-                  type="button"
-                  aria-label="Borrar celda"
-                  title="Borrar"
-                  onClick={clearSelectedCell}
-                >
-                  <EraseIcon />
-                </button>
-                <button
-                  id="toggle-notes"
-                  className={`btn-control btn-icon-circle${noteMode ? ' active' : ''}`}
-                  type="button"
-                  aria-pressed={noteMode}
-                  aria-label="Modo notas"
-                  title="Notas"
-                  onClick={() => {
-                    if (paused || completed) return
-                    setNoteMode((current) => !current)
-                  }}
-                >
-                  <span className="btn-icon-badge notes-badge">{noteMode ? 'ON' : 'OFF'}</span>
-                  <NotesIcon />
-                </button>
-                <button id="hint" className="btn-control btn-icon-circle" type="button" aria-label="Pista" title="Pista" onClick={applyHint}>
-                  <span className="btn-icon-badge hint-badge">{hintsUsed}</span>
-                  <HintIcon />
-                </button>
-              </div>
-
-              <div className="board-actions controls notes-actions">
-                <button
-                  id="toggle-highlights"
-                  className={`btn-control${highlightEnabled ? ' active' : ''}`}
-                  type="button"
-                  aria-pressed={highlightEnabled}
-                  onClick={() => {
-                    if (paused || completed) return
-                    setHighlightEnabled((current) => !current)
-                  }}
-                >
-                  Resaltar: {highlightEnabled ? 'ON' : 'OFF'}
-                </button>
-              </div>
-            </div>
+            <SudokuControlsPanel
+              noteMode={noteMode}
+              highlightEnabled={highlightEnabled}
+              hintCount={hintsUsed}
+              onApplyValue={(num) => applyValue(num, noteMode)}
+              onClearCell={clearSelectedCell}
+              onHint={applyHint}
+              onToggleNoteMode={() => {
+                if (paused || completed) return
+                setNoteMode((current) => !current)
+              }}
+              onToggleHighlight={() => {
+                if (paused || completed) return
+                setHighlightEnabled((current) => !current)
+              }}
+              getNumberHidden={(num) => correctCounts[num] >= 9}
+              getNumberDisabled={(num) => correctCounts[num] >= 9}
+            />
           </div>
 
           <div className="sudoku-bottom">

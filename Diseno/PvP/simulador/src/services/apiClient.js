@@ -283,7 +283,7 @@ export const apiClient = {
     })
   },
 
-  createPvpMatch(payload, accessToken) {
+  createPvpMatch(payload = {}, accessToken) {
     return request('match', {
       method: 'POST',
       baseUrl: 'pvp',
@@ -292,7 +292,7 @@ export const apiClient = {
     })
   },
 
-  joinPvpMatch(matchId, payload, accessToken) {
+  joinPvpMatch(matchId, payload = {}, accessToken) {
     return request(`match/${matchId}/join`, {
       method: 'POST',
       baseUrl: 'pvp',
