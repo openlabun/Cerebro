@@ -79,27 +79,7 @@ function warmAccessCodeCache(rows) {
 }
 
 async function getJson(url) {
-  const response = await fetch(url, { headers: { Accept: "application/json" } });
-  const text = await response.text();
-  let payload = null;
-  if (text) {
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      payload = null;
-    }
-  }
-  if (!response.ok) {
-    const msg =
-      payload?.message ||
-      payload?.error ||
-      (text && !payload ? `HTTP ${response.status} (respuesta no JSON)` : `HTTP ${response.status}`);
-    throw new Error(Array.isArray(msg) ? msg.join(", ") : msg);
-  }
-  if (text && !payload) {
-    throw new Error("Respuesta invalida del servidor (no JSON)");
-  }
-  return payload;
+  return window.AdminAuth.fetchJson(url);
 }
 
 function renderAverageTimeByDifficultyTable(data) {
@@ -574,14 +554,25 @@ function bindTorneosEvents() {
   }
 }
 
-window.addEventListener("focus", loadDatos);
+window.addEventListener("focus", () => {
+  if (window.AdminAuth.requireSession({ redirectOnFail: false })) {
+    loadDatos();
+  }
+});
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) loadDatos();
+  if (!document.hidden && window.AdminAuth.requireSession({ redirectOnFail: false })) {
+    loadDatos();
+  }
 });
 window.addEventListener("load", () => {
+  const session = window.AdminAuth.requireSession();
+  if (!session) return;
+  window.AdminAuth.bindLogoutButtons();
   bindTorneosEvents();
   loadDatos();
   window.setInterval(() => {
-    if (!document.hidden) loadDatos();
+    if (!document.hidden && window.AdminAuth.requireSession({ redirectOnFail: false })) {
+      loadDatos();
+    }
   }, REFRESH_MS);
 });

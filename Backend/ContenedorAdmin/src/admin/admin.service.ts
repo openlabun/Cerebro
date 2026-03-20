@@ -40,6 +40,7 @@ type GamesByUserRow = {
 
 type RequestOptions = {
   requiresAuth?: boolean;
+  accessToken?: string;
 };
 
 type AverageTimeByDifficultyRow = {
@@ -104,24 +105,29 @@ export class AdminService {
     'Profesional',
   ];
 
-  async buildOverview() {
-    const snapshot = await this.getAggregatedSnapshot();
+  async buildOverview(accessToken: string) {
+    const snapshot = await this.getAggregatedSnapshot(accessToken);
     return snapshot.overview;
   }
 
-  async getTotalUsers() {
-    const snapshot = await this.getAggregatedSnapshot();
+  async getTotalUsers(accessToken: string) {
+    const snapshot = await this.getAggregatedSnapshot(accessToken);
     return snapshot.usersTotal;
   }
 
-  async getDashboardSnapshot(fromInput?: string, toInput?: string, includeTorneos = false) {
+  async getDashboardSnapshot(
+    accessToken: string,
+    fromInput?: string,
+    toInput?: string,
+    includeTorneos = false,
+  ) {
     const [overview, usersTotal, gamesByUser, usersTimeseries] = await Promise.all([
-      this.buildOverview(),
-      this.getTotalUsers(),
-      this.getGamesByUser(),
-      this.getUsersTimeSeries(fromInput, toInput),
+      this.buildOverview(accessToken),
+      this.getTotalUsers(accessToken),
+      this.getGamesByUser(accessToken),
+      this.getUsersTimeSeries(accessToken, fromInput, toInput),
     ]);
-    const avgTimeByDifficulty = await this.getAverageTimeByDifficulty();
+    const avgTimeByDifficulty = await this.getAverageTimeByDifficulty(accessToken);
 
     if (!includeTorneos) {
       return {
@@ -134,7 +140,7 @@ export class AdminService {
       };
     }
 
-    const torneos = await this.getTorneos();
+    const torneos = await this.getTorneos(accessToken);
       return {
         overview,
         usersTotal,
@@ -150,8 +156,8 @@ export class AdminService {
     };
   }
 
-  async getUsersTimeSeries(fromInput?: string, toInput?: string) {
-    const snapshot = await this.getAggregatedSnapshot();
+  async getUsersTimeSeries(accessToken: string, fromInput?: string, toInput?: string) {
+    const snapshot = await this.getAggregatedSnapshot(accessToken);
 
     const now = new Date();
     const fromFallback = new Date(now);
@@ -188,23 +194,23 @@ export class AdminService {
     };
   }
 
-  async getGamesByUser() {
-    const snapshot = await this.getAggregatedSnapshot();
+  async getGamesByUser(accessToken: string) {
+    const snapshot = await this.getAggregatedSnapshot(accessToken);
     return {
       data: snapshot.gamesByUser,
       source: 'contenedor1-contenedor2',
     };
   }
 
-  async getAverageTimeByDifficulty() {
-    const snapshot = await this.getAggregatedSnapshot();
+  async getAverageTimeByDifficulty(accessToken: string) {
+    const snapshot = await this.getAggregatedSnapshot(accessToken);
     return {
       data: snapshot.averageTimeByDifficulty,
       source: 'SesionJuego-seedsSudoku',
     };
   }
 
-  async getAverageTimeBySeedForDifficulty(dificultadInput: string) {
+  async getAverageTimeBySeedForDifficulty(accessToken: string, dificultadInput: string) {
     const dificultad = String(dificultadInput || '').trim();
     if (!dificultad) {
       return {
@@ -216,8 +222,8 @@ export class AdminService {
 
     try {
       const [sesionesRaw, seedsRaw] = await Promise.all([
-        this.requestRobleRead('SesionJuego'),
-        this.requestRobleRead('seedsSudoku'),
+        this.requestRobleRead(accessToken, 'SesionJuego'),
+        this.requestRobleRead(accessToken, 'seedsSudoku'),
       ]);
 
       const sesiones = Array.isArray(sesionesRaw)
@@ -282,8 +288,8 @@ export class AdminService {
     }
   }
 
-  async getUserGames(userId: string) {
-    const payload = await this.getGamesByUser();
+  async getUserGames(accessToken: string, userId: string) {
+    const payload = await this.getGamesByUser(accessToken);
     const user = payload.data.find((item) => item.userId === userId);
     if (!user) return null;
 
@@ -294,50 +300,70 @@ export class AdminService {
     };
   }
 
-  async getTorneos() {
-    const snapshot = await this.getAggregatedSnapshot();
+  async getTorneos(accessToken: string) {
+    const snapshot = await this.getAggregatedSnapshot(accessToken);
     return snapshot.torneos;
   }
 
-  async createTorneo(dto: CreateTorneoDto) {
+  async createTorneo(accessToken: string, dto: CreateTorneoDto) {
     const payload = {
       ...dto,
       recurrencia: dto.recurrencia || 'NINGUNA',
       configuracion: dto.configuracion || {},
     };
-    const result = await this.requestContenedor1('torneos', 'POST', payload);
-    this.invalidateSnapshotCache();
-    return result;
-  }
-
-  async patchTorneoEstado(torneoId: string, dto: UpdateTorneoEstadoDto) {
-    const result = await this.requestContenedor1(`torneos/${torneoId}/estado`, 'PATCH', {
-      estado: dto.estado,
-      razon: dto.razon || 'Actualizado desde modulo admin',
+    const result = await this.requestContenedor1('torneos', 'POST', payload, {
+      accessToken,
     });
     this.invalidateSnapshotCache();
     return result;
   }
 
-  async getTorneoById(torneoId: string) {
-    return this.requestContenedor1(`torneos/${torneoId}`, 'GET');
-  }
-
-  async updateTorneo(torneoId: string, payload: Record<string, unknown>) {
+  async patchTorneoEstado(
+    accessToken: string,
+    torneoId: string,
+    dto: UpdateTorneoEstadoDto,
+  ) {
     const result = await this.requestContenedor1(
-      `torneos/${torneoId}`,
-      'PUT',
-      payload,
+      `torneos/${torneoId}/estado`,
+      'PATCH',
+      {
+        estado: dto.estado,
+        razon: dto.razon || 'Actualizado desde modulo admin',
+      },
+      { accessToken },
     );
     this.invalidateSnapshotCache();
     return result;
   }
 
-  async getAuthUsers() {
-    return this.requestContenedor1('auth/users', 'GET');
+  async getTorneoById(accessToken: string, torneoId: string) {
+    return this.requestContenedor1(`torneos/${torneoId}`, 'GET', undefined, {
+      accessToken,
+    });
   }
 
-  private async getAggregatedSnapshot() {
+  async updateTorneo(
+    accessToken: string,
+    torneoId: string,
+    payload: Record<string, unknown>,
+  ) {
+    const result = await this.requestContenedor1(
+      `torneos/${torneoId}`,
+      'PUT',
+      payload,
+      { accessToken },
+    );
+    this.invalidateSnapshotCache();
+    return result;
+  }
+
+  async getAuthUsers(accessToken: string) {
+    return this.requestContenedor1('auth/users', 'GET', undefined, {
+      accessToken,
+    });
+  }
+
+  private async getAggregatedSnapshot(accessToken: string) {
     const now = Date.now();
     if (this.snapshotCache && now < this.snapshotCacheExpiresAt) {
       return this.snapshotCache;
@@ -347,7 +373,7 @@ export class AdminService {
       return this.snapshotInFlight;
     }
 
-    this.snapshotInFlight = this.buildAggregatedSnapshot();
+    this.snapshotInFlight = this.buildAggregatedSnapshot(accessToken);
     try {
       const snapshot = await this.snapshotInFlight;
       this.snapshotCache = snapshot;
@@ -358,13 +384,13 @@ export class AdminService {
     }
   }
 
-  private async buildAggregatedSnapshot() {
+  private async buildAggregatedSnapshot(accessToken: string) {
     const [torneos, ranking, sudokuMatchesPlayed, totalProfiles, averageTimeByDifficulty] = await Promise.all([
-      this.getTorneosListFromContenedor1(),
-      this.getTopRankingFromContenedor2(),
-      this.getSudokuMatchesPlayed(),
-      this.getProfilesCountFromContenedor1(),
-      this.getAverageTimeByDifficultyFromRoble(),
+      this.getTorneosListFromContenedor1(accessToken),
+      this.getTopRankingFromContenedor2(accessToken),
+      this.getSudokuMatchesPlayed(accessToken),
+      this.getProfilesCountFromContenedor1(accessToken),
+      this.getAverageTimeByDifficultyFromRoble(accessToken),
     ]);
 
     const creatorIds = new Set<string>();
@@ -372,7 +398,7 @@ export class AdminService {
       const creatorId = this.normalizeUserId(torneo.creadorId);
       if (creatorId) creatorIds.add(creatorId);
     }
-    const creatorNames = await this.getAuthUserNamesByIdSafe(creatorIds);
+    const creatorNames = await this.getAuthUserNamesByIdSafe(accessToken, creatorIds);
     for (const torneo of torneos) {
       const creatorId = this.normalizeUserId(torneo.creadorId);
       if (!creatorId) continue;
@@ -385,7 +411,10 @@ export class AdminService {
       torneos
         .filter((t) => Boolean(t?._id))
         .map(async (torneo) => {
-          const participantes = await this.getParticipantesByTorneo(torneo._id!);
+          const participantes = await this.getParticipantesByTorneo(
+            accessToken,
+            torneo._id!,
+          );
           return { torneoId: torneo._id!, participantes };
         }),
     );
@@ -470,11 +499,11 @@ export class AdminService {
     };
   }
 
-  private async getAverageTimeByDifficultyFromRoble() {
+  private async getAverageTimeByDifficultyFromRoble(accessToken: string) {
     try {
       const [sesionesRaw, seedsRaw] = await Promise.all([
-        this.requestRobleRead('SesionJuego'),
-        this.requestRobleRead('seedsSudoku'),
+        this.requestRobleRead(accessToken, 'SesionJuego'),
+        this.requestRobleRead(accessToken, 'seedsSudoku'),
       ]);
 
       const sesiones = Array.isArray(sesionesRaw)
@@ -592,19 +621,26 @@ export class AdminService {
     }
   }
 
-  private async getTorneosListFromContenedor1() {
-    const payload = await this.requestContenedor1('torneos', 'GET');
+  private async getTorneosListFromContenedor1(accessToken: string) {
+    const payload = await this.requestContenedor1('torneos', 'GET', undefined, {
+      accessToken,
+    });
+    const payloadRecord = payload as { data?: unknown } | null;
     if (Array.isArray(payload)) return payload as TorneoRecord[];
-    if (payload?.data && Array.isArray(payload.data)) return payload.data as TorneoRecord[];
+    if (payloadRecord?.data && Array.isArray(payloadRecord.data)) {
+      return payloadRecord.data as TorneoRecord[];
+    }
     return [] as TorneoRecord[];
   }
 
-  private async getAuthUserNamesByIdSafe(userIds: Set<string>) {
+  private async getAuthUserNamesByIdSafe(accessToken: string, userIds: Set<string>) {
     const map = new Map<string, string>();
     if (!userIds.size) return map;
 
     try {
-      const payload = await this.requestContenedor1('auth/users', 'GET');
+      const payload = await this.requestContenedor1('auth/users', 'GET', undefined, {
+        accessToken,
+      });
       const rows = this.extractAuthUsersRows(payload);
       for (const row of rows) {
         const id = this.resolveAuthUserId(row);
@@ -677,40 +713,61 @@ export class AdminService {
     return '';
   }
 
-  private async getParticipantesByTorneo(torneoId: string) {
-    const payload = await this.requestContenedor1(`torneos/${torneoId}/participantes`, 'GET');
+  private async getParticipantesByTorneo(accessToken: string, torneoId: string) {
+    const payload = await this.requestContenedor1(
+      `torneos/${torneoId}/participantes`,
+      'GET',
+      undefined,
+      { accessToken },
+    );
+    const payloadRecord = payload as { data?: unknown } | null;
     if (Array.isArray(payload)) return payload as ParticipanteRecord[];
-    if (payload?.data && Array.isArray(payload.data)) return payload.data as ParticipanteRecord[];
+    if (payloadRecord?.data && Array.isArray(payloadRecord.data)) {
+      return payloadRecord.data as ParticipanteRecord[];
+    }
     return [] as ParticipanteRecord[];
   }
 
-  private async getTopRankingFromContenedor2() {
+  private async getTopRankingFromContenedor2(accessToken: string) {
     try {
-      const payload = await this.requestContenedor2('pvp/ranking', 'GET');
+      const payload = await this.requestContenedor2('pvp/ranking', 'GET', undefined, {
+        accessToken,
+      });
+      const payloadRecord = payload as { data?: unknown } | null;
       if (Array.isArray(payload)) return payload as RankingRecord[];
-      if (payload?.data && Array.isArray(payload.data)) return payload.data as RankingRecord[];
+      if (payloadRecord?.data && Array.isArray(payloadRecord.data)) {
+        return payloadRecord.data as RankingRecord[];
+      }
       return [] as RankingRecord[];
     } catch {
       return [] as RankingRecord[];
     }
   }
 
-  private async getSudokuMatchesPlayed() {
+  private async getSudokuMatchesPlayed(accessToken: string) {
     try {
       const payload = await this.requestContenedor1(
         'game-stats/summary?juegoId=sudoku',
         'GET',
+        undefined,
+        { accessToken },
       );
-      return Number(payload?.totalPartidasJugadas || 0);
+      const payloadRecord = payload as { totalPartidasJugadas?: unknown } | null;
+      return Number(payloadRecord?.totalPartidasJugadas || 0);
     } catch {
       return 0;
     }
   }
 
-  private async getProfilesCountFromContenedor1() {
+  private async getProfilesCountFromContenedor1(accessToken: string) {
     try {
-      const payload = await this.requestContenedor1('profiles/count', 'GET');
-      return Number(payload?.totalProfiles || payload?.count || 0);
+      const payload = await this.requestContenedor1('profiles/count', 'GET', undefined, {
+        accessToken,
+      });
+      const payloadRecord = payload as
+        | { totalProfiles?: unknown; count?: unknown }
+        | null;
+      return Number(payloadRecord?.totalProfiles || payloadRecord?.count || 0);
     } catch {
       return 0;
     }
@@ -908,7 +965,7 @@ export class AdminService {
 
     const requiresAuth = options?.requiresAuth ?? true;
     if (requiresAuth) {
-      const token = await this.getAdminApiToken();
+      const token = String(options?.accessToken || '').trim() || (await this.getAdminApiToken());
       if (!token) {
         throw new Error(
           'No hay token disponible. Define ADMIN_REFRESH_TOKEN/ADMIN_API_TOKEN o ADMIN_EMAIL/ADMIN_PASSWORD.',
@@ -928,20 +985,29 @@ export class AdminService {
     });
 
     const raw = await response.text();
-    const payload = raw ? JSON.parse(raw) : null;
+    let payload: unknown = null;
+    if (raw) {
+      try {
+        payload = JSON.parse(raw);
+      } catch {
+        payload = null;
+      }
+    }
 
     if (!response.ok) {
       const details =
-        payload?.message ||
-        payload?.error ||
-        `Request failed with status ${response.status}`;
+        (payload as { message?: unknown; error?: unknown } | null)?.message ||
+        (payload as { message?: unknown; error?: unknown } | null)?.error ||
+        (raw && !payload
+          ? `HTTP ${response.status} (respuesta no JSON)`
+          : `Request failed with status ${response.status}`);
       throw new Error(Array.isArray(details) ? details.join(', ') : String(details));
     }
 
     return payload;
   }
 
-  private async requestRobleRead(tableName: string) {
+  private async requestRobleRead(accessToken: string, tableName: string) {
     const base = String(process.env.ROBLE_DB_BASE || '').replace(/\/+$/, '');
     const dbName = String(process.env.ROBLE_DBNAME || '').trim();
     if (!base || !dbName) {
@@ -949,6 +1015,9 @@ export class AdminService {
     }
 
     const path = `${dbName}/read?tableName=${encodeURIComponent(tableName)}`;
-    return this.requestApi(base, path, 'GET', undefined, { requiresAuth: true });
+    return this.requestApi(base, path, 'GET', undefined, {
+      requiresAuth: true,
+      accessToken,
+    });
   }
 }

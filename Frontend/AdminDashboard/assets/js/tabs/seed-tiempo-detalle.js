@@ -17,14 +17,7 @@ function escapeHtml(text) {
 }
 
 async function getJson(url) {
-  const response = await fetch(url, { headers: { Accept: "application/json" } });
-  const text = await response.text();
-  const payload = text ? JSON.parse(text) : null;
-  if (!response.ok) {
-    const msg = payload?.message || `HTTP ${response.status}`;
-    throw new Error(Array.isArray(msg) ? msg.join(", ") : msg);
-  }
-  return payload;
+  return window.AdminAuth.fetchJson(url);
 }
 
 function renderRows(rows) {
@@ -72,4 +65,9 @@ async function loadDetails() {
   }
 }
 
-window.addEventListener("load", loadDetails);
+window.addEventListener("load", () => {
+  const session = window.AdminAuth.requireSession();
+  if (!session) return;
+  window.AdminAuth.bindLogoutButtons();
+  loadDetails();
+});

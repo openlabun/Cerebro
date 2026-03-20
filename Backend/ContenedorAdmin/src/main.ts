@@ -21,6 +21,10 @@ async function bootstrap() {
       'API de observabilidad y administración operativa para CEREBRO.',
     )
     .setVersion('1.0.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'access-token',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

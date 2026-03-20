@@ -49,6 +49,8 @@ body {
   font-weight: 700;
   color: #dbebff;
   background: rgba(255, 255, 255, 0.1);
+  font: inherit;
+  cursor: pointer;
 }
 
 .layout {

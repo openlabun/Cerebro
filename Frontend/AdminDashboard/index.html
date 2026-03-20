@@ -3,69 +3,63 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CEREBRO Admin Dashboard</title>
-    <style>
-      :root {
-        --bg: #f6f7ff;
-        --surface: #ffffff;
-        --primary: #5b5eff;
-        --primary-dark: #4348db;
-        --text: #1e2450;
-        --muted: #6b7297;
-        --border: #e5e8ff;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        font-family: "Inter", "Segoe UI", sans-serif;
-        background: radial-gradient(circle at top right, #eceefe, var(--bg) 40%);
-        color: var(--text);
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        padding: 20px;
-      }
-      .panel {
-        width: min(760px, 100%);
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 20px;
-        padding: 28px;
-        box-shadow: 0 20px 45px rgba(57, 68, 142, 0.15);
-      }
-      h1 { margin: 0 0 8px; }
-      p { margin: 0 0 18px; color: var(--muted); }
-      .actions {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
-      .btn {
-        text-decoration: none;
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-weight: 700;
-        border: 1px solid var(--border);
-      }
-      .btn.primary {
-        background: var(--primary);
-        border-color: var(--primary);
-        color: #fff;
-      }
-      .btn.secondary {
-        color: var(--primary-dark);
-        background: color-mix(in srgb, var(--primary) 12%, transparent);
-      }
-    </style>
+    <title>CEREBRO Admin Dashboard - Login</title>
+    <link rel="stylesheet" href="/assets/css/login.css?v=20260320-1" />
   </head>
   <body>
-    <main class="panel">
-      <h1>Admin Dashboard CEREBRO</h1>
-      <p>Selecciona una pestaña para ver datos netos o visualizaciones.</p>
-      <div class="actions">
-        <a class="btn primary" href="/tabs/datos.html">Ir a Datos</a>
-        <a class="btn secondary" href="/tabs/graficas.html">Ir a Graficas</a>
-      </div>
+    <main class="login-shell">
+      <section class="hero">
+        <p class="eyebrow">CEREBRO Admin</p>
+        <h1>Control operativo para torneos y observabilidad</h1>
+        <p>
+          Accede con una cuenta ROBLE que tenga rol <strong>admin</strong> para
+          consultar metricas, administrar torneos y operar el panel.
+        </p>
+        <ul class="hero-list">
+          <li>
+            <strong>Datos agregados</strong>
+            <span>Resumen general, tiempos por dificultad y tablas operativas.</span>
+          </li>
+          <li>
+            <strong>Gestion de torneos</strong>
+            <span>Crear, editar y cambiar estado desde un unico lugar.</span>
+          </li>
+          <li>
+            <strong>Acceso restringido</strong>
+            <span>Solo cuentas admin autenticadas por ROBLE pueden entrar.</span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="login-card">
+        <p class="eyebrow">Acceso seguro</p>
+        <h2>Iniciar sesion</h2>
+        <p>Usa tus credenciales admin para entrar al dashboard.</p>
+
+        <form id="loginForm" class="login-form">
+          <label>
+            Correo institucional
+            <input id="email" type="email" autocomplete="username" required />
+          </label>
+
+          <label>
+            Contrasena
+            <input
+              id="password"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+          </label>
+
+          <button id="loginBtn" type="submit">Entrar al dashboard</button>
+        </form>
+
+        <p id="loginStatus" class="status-text"></p>
+      </section>
     </main>
+
+    <script src="/assets/js/auth.js?v=20260320-1"></script>
+    <script src="/assets/js/login.js?v=20260320-1"></script>
   </body>
 </html>

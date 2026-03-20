@@ -32,34 +32,7 @@ function setStatus(message) {
 }
 
 async function getJson(url, options = {}) {
-  const response = await fetch(url, {
-    headers: { Accept: "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-
-  const text = await response.text();
-  let payload = null;
-  if (text) {
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      payload = null;
-    }
-  }
-
-  if (!response.ok) {
-    const msg =
-      payload?.message ||
-      payload?.error ||
-      (text && !payload ? `HTTP ${response.status} (respuesta no JSON)` : `HTTP ${response.status}`);
-    throw new Error(Array.isArray(msg) ? msg.join(", ") : msg);
-  }
-
-  if (text && !payload) {
-    throw new Error("Respuesta invalida del servidor (no JSON)");
-  }
-
-  return payload;
+  return window.AdminAuth.fetchJson(url, options);
 }
 
 function toDateTimeLocal(value) {
@@ -685,6 +658,10 @@ async function onUpdateEstado() {
 }
 
 window.addEventListener("load", () => {
+  const session = window.AdminAuth.requireSession();
+  if (!session) return;
+  window.AdminAuth.bindLogoutButtons();
+
   const params = new URLSearchParams(window.location.search);
   torneoId = (params.get("id") || "").trim();
   const mode = (params.get("mode") || "").trim().toLowerCase();
