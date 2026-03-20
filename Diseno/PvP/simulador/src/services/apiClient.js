@@ -368,9 +368,31 @@ export const apiClient = {
     })
   },
 
+  createGameSession(accessToken, payload) {
+    return request('game-sessions', {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
+  addExperience(accessToken, experiencia) {
+    return request('profiles/add-experience', {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+      body: { experiencia },
+    })
+  },
+
   getLatestGameSession(accessToken, gameId, options = {}) {
-    const excludeParam = options.excludeSessionId ? `?exclude=${options.excludeSessionId}` : ''
-    return request(`game-sessions/latest/${gameId}${excludeParam}`, {
+    const normalizedGameId = String(gameId || '').trim()
+    const excludeSessionId = String(options.excludeSessionId || '').trim()
+    const query = new URLSearchParams({ juegoId: normalizedGameId })
+    if (excludeSessionId) query.set('excludeSessionId', excludeSessionId)
+
+    return request(`game-sessions/latest?${query.toString()}`, {
       method: 'GET',
       baseUrl: 'auth',
       token: accessToken,
