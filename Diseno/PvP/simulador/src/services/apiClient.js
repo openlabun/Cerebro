@@ -326,4 +326,92 @@ export const apiClient = {
       token: accessToken,
     })
   },
+
+  getMyProfile(accessToken) {
+    return request('profiles/me', {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  getMyGameStats(accessToken, gameId) {
+    return request('game-stats/me', {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+      body: { juegoId: gameId },
+    })
+  },
+
+  getAchievements(accessToken) {
+    return request('achievements', {
+      method: 'GET',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  getMyAchievements(accessToken) {
+    return request('my-achievements', {
+      method: 'GET',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  unlockAchievement(accessToken, logroId) {
+    return request(`achievements/${logroId}/unlock`, {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  createGameSession(accessToken, payload) {
+    return request('game-sessions', {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
+  addExperience(accessToken, experiencia) {
+    return request('profiles/add-experience', {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+      body: { experiencia },
+    })
+  },
+
+  getLatestGameSession(accessToken, gameId, options = {}) {
+    const normalizedGameId = String(gameId || '').trim()
+    const excludeSessionId = String(options.excludeSessionId || '').trim()
+    const query = new URLSearchParams({ juegoId: normalizedGameId })
+    if (excludeSessionId) query.set('excludeSessionId', excludeSessionId)
+
+    return request(`game-sessions/latest?${query.toString()}`, {
+      method: 'GET',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  increaseStreak(accessToken) {
+    return request('streak/increase', {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  resetStreak(accessToken) {
+    return request('streak/reset', {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
 }
