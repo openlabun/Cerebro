@@ -3,7 +3,7 @@ services:
   frontend:
     container_name: cerebro-frontend
     build:
-      context: "./Diseno/PvP/simulador"
+      context: "./Frontend"
       dockerfile: Dockerfile.frontend
       args:
         VITE_APP_BASE_PATH: "/"
@@ -70,7 +70,7 @@ services:
   pvp-simulador:
     container_name: cerebro-pvp-simulador
     build:
-      context: "./Diseno/PvP/simulador"
+      context: "./Frontend"
       dockerfile: Dockerfile
     ports:
       - "3003:3003"
