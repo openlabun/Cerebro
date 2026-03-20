@@ -329,28 +329,106 @@ function SudokuPage() {
     }
   }
 
+  function getXpByDifficulty(score, difficulty) {
+    const baseXp = Math.max(0, Math.floor(score / 10))
+    const multipliers = {
+      Principiante: 1.0,
+      Iniciado: 1.2,
+      Intermedio: 1.5,
+      Avanzado: 1.8,
+      Experto: 2.1,
+      Profesional: 2.5,
+    }
+    const multiplier = multipliers[difficulty?.label] ?? 1.0
+    return Math.max(1, Math.floor(baseXp * multiplier))
+  }
+
+  function getVirtualOpponentRating(difficulty) {
+    const map = {
+      Principiante: 300,
+      Iniciado: 500,
+      Intermedio: 700,
+      Avanzado: 900,
+      Experto: 1100,
+      Profesional: 1300,
+    }
+    return map[difficulty?.label] ?? 700
+  }
+
+  function calculateExpectedScore(playerElo, opponentElo) {
+    const diff = (opponentElo - playerElo) / 400
+    return 1 / (1 + 10 ** diff)
+  }
+
+  function calculateEloDelta(playerElo, opponentElo, result) {
+    const k = playerElo < 1200 ? 40 : playerElo < 1800 ? 30 : 20
+    const expected = calculateExpectedScore(playerElo, opponentElo)
+    const actual = result === 'victoria' ? 1 : result === 'derrota' ? 0 : 0.5
+    const delta = Math.round(k * (actual - expected))
+    return delta
+  }
+
+  function calculatePerformanceState({ seconds, errorCount, hintsUsed }, difficulty) {
+    const timeFactor = Math.min(1, 1 - seconds / 900)
+    const errorFactor = Math.max(0, 1 - errorCount / 30)
+    const hintFactor = Math.max(0, 1 - hintsUsed / 10)
+    const basePerformance = (timeFactor + errorFactor + hintFactor) / 3
+
+    const difficultyPenalty = {
+      Principiante: 0.0,
+      Iniciado: 0.04,
+      Intermedio: 0.08,
+      Avanzado: 0.12,
+      Experto: 0.16,
+      Profesional: 0.20,
+    }
+
+    return Math.max(0, basePerformance - (difficultyPenalty[difficulty?.label] ?? 0.08))
+  }
+
   async function handleSudokuCompletion(nextScore) {
     if (!isAuthenticated || !accessToken) return
 
     let gameSession = null
+    let eloChange = 0
+    let resultado = 'victoria'
+    let xpGain = 0
 
     try {
+      const stats = await apiClient.getMyGameStats(accessToken, GAME_ID_SUDOKU).catch(() => null)
+      const currentElo = Number(stats?.elo || 0)
+      const opponentElo = getVirtualOpponentRating(difficulty)
+      const performance = calculatePerformanceState({ seconds, errorCount, hintsUsed }, difficulty)
+
+      const isBadInPrincipiante = difficulty?.label === 'Principiante' && currentElo >= 500 && performance < 0.54
+      resultado = performance < 0.5 || isBadInPrincipiante ? 'derrota' : 'victoria'
+
+      eloChange = calculateEloDelta(currentElo, opponentElo, resultado)
+      // ensure negative on very poor principiante with high elo
+      if (difficulty?.label === 'Principiante' && performance < 0.35 && currentElo > 600) {
+        eloChange = Math.min(-5, eloChange)
+        resultado = 'derrota'
+      }
+
+      xpGain = getXpByDifficulty(nextScore, difficulty)
+
       gameSession = await apiClient.createGameSession(accessToken, {
         juegoId: GAME_ID_SUDOKU,
         puntaje: nextScore,
-        resultado: 'singlePlayer',
-        cambioElo: nextScore > 700 ? 15 : nextScore > 400 ? 10 : 5,
+        resultado,
+        cambioElo: eloChange,
         tiempo: seconds,
         seedId: undefined,
         seed,
       })
 
-      await apiClient.addExperience(accessToken, Math.floor(nextScore / 4))
+      await apiClient.addExperience(accessToken, xpGain)
     } catch (error) {
       console.warn('No se pudo persistir la sesion de Sudoku:', error)
     }
 
     await registerSudokuActivity(nextScore, gameSession)
+    setStatus(`XP ganada: ${xpGain}. ELO cambio: ${eloChange} (${resultado}).`, true)
   }
 
   function startNewGame(nextDifficultyKey = difficultyKey) {
