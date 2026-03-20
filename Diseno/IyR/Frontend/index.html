@@ -20,8 +20,8 @@
     <header class="topbar">
       <a class="logo" id="home-logo" href="#">Cere<span>bro</span></a>
       <nav>
-        <button type="button" class="nav-btn active" id="tab-inicio">Inicio</button>
-        <button type="button" class="nav-btn" id="tab-jugar">Jugar Sudoku</button>
+        <button type="button" class="nav-btn hidden" id="tab-inicio" hidden aria-hidden="true">Inicio</button>
+        <button type="button" class="nav-btn active" id="tab-jugar">Jugar Sudoku</button>
         <button type="button" class="nav-btn" id="tab-torneos">Torneos</button>
         <button type="button" class="nav-btn" id="tab-pvp">PvP</button>
         <button type="button" class="nav-btn" id="tab-perfil">Perfil</button>
@@ -34,7 +34,7 @@
     </header>
 
     <main>
-      <section id="inicio-tab">
+      <section id="inicio-tab" class="hidden" hidden aria-hidden="true">
         <article class="welcome-banner board-card">
           <p class="eyebrow">Bienvenido a Cerebro</p>
           <h1>Tu plataforma de juegos de agilidad mental</h1>

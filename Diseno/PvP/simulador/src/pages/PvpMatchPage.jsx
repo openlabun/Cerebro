@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import SudokuBoard from '../components/SudokuBoard.jsx'
+import { EraseIcon, NotesIcon } from '../components/SudokuControlIcons.jsx'
 import { resolveConfig } from '../config.js'
 import {
   SudokuGameProvider,
@@ -509,8 +510,14 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
                 </div>
 
                 <div className="board-actions controls icon-actions">
-                  <button className="btn-control btn-icon-circle" type="button" onClick={() => setStatus('Partida en curso.', true)}>
-                    <span className="btn-icon" aria-hidden="true">
+                  <button
+                    className="btn-control btn-icon-circle"
+                    type="button"
+                    aria-label="Estado de partida"
+                    title="Estado"
+                    onClick={() => setStatus('Partida en curso.', true)}
+                  >
+                    <span className="btn-icon btn-icon-text" aria-hidden="true">
                       OK
                     </span>
                   </button>
@@ -518,17 +525,15 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
                     className={`btn-control btn-icon-circle${noteMode ? ' active' : ''}`}
                     type="button"
                     aria-pressed={noteMode}
+                    aria-label="Modo notas"
+                    title="Notas"
                     onClick={() => setNoteMode((current) => !current)}
                   >
                     <span className="btn-icon-badge notes-badge">{noteMode ? 'ON' : 'OFF'}</span>
-                    <span className="btn-icon" aria-hidden="true">
-                      N
-                    </span>
+                    <NotesIcon />
                   </button>
-                  <button className="btn-control btn-icon-circle" type="button" onClick={handleClearCell}>
-                    <span className="btn-icon" aria-hidden="true">
-                      CLR
-                    </span>
+                  <button className="btn-control btn-icon-circle" type="button" aria-label="Borrar celda" title="Borrar" onClick={handleClearCell}>
+                    <EraseIcon />
                   </button>
                 </div>
 

@@ -1,7 +1,6 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { Navigate, createBrowserRouter } from 'react-router-dom'
 import App from '../App.jsx'
 import RequireAuth from '../components/RequireAuth.jsx'
-import HomePage from '../pages/HomePage.jsx'
 import LoginPage from '../pages/LoginPage.jsx'
 import SignUpPage from '../pages/SignUpPage.jsx'
 import SimulationPage from '../pages/SimulationPage.jsx'
@@ -17,7 +16,7 @@ const router = createBrowserRouter(
       children: [
         {
           index: true,
-          element: <HomePage />,
+          element: <SudokuPage />,
         },
         {
           path: 'login',
@@ -26,6 +25,10 @@ const router = createBrowserRouter(
         {
           path: 'signup',
           element: <SignUpPage />,
+        },
+        {
+          path: 'sudoku',
+          element: <Navigate to="/" replace />,
         },
         {
           path: 'profile',
@@ -37,10 +40,6 @@ const router = createBrowserRouter(
             {
               path: 'simulacion',
               element: <SimulationPage />,
-            },
-            {
-              path: 'sudoku',
-              element: <SudokuPage />,
             },
             {
               path: 'pvp/:matchId',

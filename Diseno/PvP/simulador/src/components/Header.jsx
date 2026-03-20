@@ -1,9 +1,16 @@
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { applyTheme, getNextTheme, getStoredTheme, getThemeLabel } from '../lib/theme.js'
 
 function Header() {
   const navigate = useNavigate()
   const { isAuthenticated, user, logout } = useAuth()
+  const [theme, setTheme] = useState(() => getStoredTheme())
+
+  useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
 
   async function handleSessionAction() {
     if (!isAuthenticated) {
@@ -18,7 +25,7 @@ function Header() {
   return (
     <header className="topbar">
       <NavLink className="logo" to="/">
-        Cerebro<span>PvP</span>
+        Cere<span>bro</span>
       </NavLink>
       <nav>
         <NavLink
@@ -26,22 +33,24 @@ function Header() {
           end
           className={({ isActive }) => `nav-btn${isActive ? ' active' : ''}`}
         >
-          Inicio
+          Jugar Sudoku
         </NavLink>
         <NavLink
           to="/simulacion"
           className={({ isActive }) => `nav-btn${isActive ? ' active' : ''}`}
         >
-          Simulacion
-        </NavLink>
-        <NavLink
-          to="/sudoku"
-          className={({ isActive }) => `nav-btn${isActive ? ' active' : ''}`}
-        >
-          Sudoku
+          PvP
         </NavLink>
       </nav>
       <div className="session-actions">
+        <button
+          id="theme-toggle"
+          className="btn ghost theme-toggle-btn"
+          type="button"
+          onClick={() => setTheme((currentTheme) => getNextTheme(currentTheme))}
+        >
+          Tema: {getThemeLabel(theme)}
+        </button>
         {isAuthenticated && user?.name ? (
           <>
             <NavLink to="/profile" className="nav-btn session-btn">
@@ -50,7 +59,11 @@ function Header() {
             <span className="session-pill">{user.name}</span>
           </>
         ) : null}
-        <button className="nav-btn session-btn" onClick={handleSessionAction} type="button">
+        <button
+          className={isAuthenticated ? 'nav-btn session-btn' : 'btn ghost theme-toggle-btn session-btn'}
+          onClick={handleSessionAction}
+          type="button"
+        >
           {isAuthenticated ? 'Cerrar sesion' : 'Iniciar sesion'}
         </button>
       </div>

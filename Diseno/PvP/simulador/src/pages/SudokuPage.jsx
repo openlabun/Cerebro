@@ -1,4 +1,5 @@
 import SudokuBoard from '../components/SudokuBoard.jsx'
+import { EraseIcon, HintIcon, NotesIcon } from '../components/SudokuControlIcons.jsx'
 import { SudokuGameProvider } from '../context/SudokuGameContext.jsx'
 import { formatSudokuTime } from '../context/SudokuGameContext.jsx'
 import { useLocalSudokuGame } from '../hooks/useLocalSudokuGame.js'
@@ -13,14 +14,12 @@ function SudokuPageContent() {
     errorCount,
     hintsUsed,
     score,
-    seed,
     noteMode,
     highlightEnabled,
     status,
     statusOk,
     progress,
     correctCounts,
-    hintLimit,
     showAchievementPopup,
     achievementPopupItems,
     streakMessage,
@@ -39,10 +38,8 @@ function SudokuPageContent() {
       <section className="games-list">
         <div className="game-header">
           <div>
-            <p className="section-kicker">Simulacion base</p>
-            <h1 className="sudoku-page-title">Sudoku listo para integrar en PvP</h1>
+            <h1 className="sudoku-page-title">Partida actual</h1>
           </div>
-          <span className="stat-chip">Jugador: tablero local</span>
         </div>
 
         <div className={`board-card sudoku-game-card${paused ? ' paused' : ''}`}>
@@ -64,7 +61,7 @@ function SudokuPageContent() {
                   ['maestro', 'Profesional'],
                 ].map(([key, label], index) => (
                   <option key={key} value={key}>
-                    {index + 1}. {label}
+                   {label}
                   </option>
                 ))}
               </select>
@@ -108,31 +105,34 @@ function SudokuPageContent() {
               </div>
 
               <div className="board-actions controls icon-actions">
-                <button id="clear-cell" className="btn-control btn-icon-circle" type="button" onClick={clearSelectedCell}>
-                  <span className="btn-icon" aria-hidden="true">
-                    CLR
-                  </span>
+                <button
+                  id="clear-cell"
+                  className="btn-control btn-icon-circle"
+                  type="button"
+                  aria-label="Borrar celda"
+                  title="Borrar"
+                  onClick={clearSelectedCell}
+                >
+                  <EraseIcon />
                 </button>
                 <button
                   id="toggle-notes"
                   className={`btn-control btn-icon-circle${noteMode ? ' active' : ''}`}
                   type="button"
                   aria-pressed={noteMode}
+                  aria-label="Modo notas"
+                  title="Notas"
                   onClick={() => {
                     if (paused || completed) return
                     setNoteMode((current) => !current)
                   }}
                 >
                   <span className="btn-icon-badge notes-badge">{noteMode ? 'ON' : 'OFF'}</span>
-                  <span className="btn-icon" aria-hidden="true">
-                    N
-                  </span>
+                  <NotesIcon />
                 </button>
-                <button id="hint" className="btn-control btn-icon-circle" type="button" onClick={applyHint}>
+                <button id="hint" className="btn-control btn-icon-circle" type="button" aria-label="Pista" title="Pista" onClick={applyHint}>
                   <span className="btn-icon-badge hint-badge">{hintsUsed}</span>
-                  <span className="btn-icon" aria-hidden="true">
-                    H
-                  </span>
+                  <HintIcon />
                 </button>
               </div>
 
@@ -164,7 +164,6 @@ function SudokuPageContent() {
             </div>
 
             <p className={`status${statusOk ? ' ok' : ''}`}>{status}</p>
-            <p className="mode-copy">Seed: {seed} | Pistas maximas: {hintLimit} | Atajos: `N` notas, `P` pausa.</p>
           </div>
         </div>
       </section>

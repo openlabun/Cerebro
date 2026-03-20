@@ -56,9 +56,6 @@ function LoginPage() {
       <section className="auth-page">
         <div className="auth-page-header">
           <h1>Iniciar sesion</h1>
-          <Link className="btn light back-home-link" to="/">
-            Volver al inicio
-          </Link>
         </div>
 
         <div className="auth-shell">

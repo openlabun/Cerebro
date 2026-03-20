@@ -175,9 +175,6 @@ function ProfilePage() {
     <main className="profile-page">
       <div className="game-header">
         <h2>Perfil de usuario</h2>
-        <button className="btn light" type="button" onClick={() => window.history.back()}>
-          Volver al inicio
-        </button>
       </div>
 
       <ProfileCard
