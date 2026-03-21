@@ -24,9 +24,22 @@ export class AuthService {
     private readonly http: HttpService,
     private readonly config: ConfigService,
   ) {
-    const base = this.config.getOrThrow<string>('ROBLE_AUTH_BASE');
-    const db = this.config.getOrThrow<string>('ROBLE_DBNAME');
-    this.baseUrl = `${base}/${db}`;
+    const contenedor1BaseUrl = this.config
+      .get<string>('CONTENEDOR1_BASE_URL')
+      ?.trim()
+      .replace(/\/+$/, '');
+
+    if (contenedor1BaseUrl) {
+      this.baseUrl = `${contenedor1BaseUrl}/auth`;
+      return;
+    }
+
+    const robleAuthBase = this.config
+      .getOrThrow<string>('ROBLE_AUTH_BASE')
+      .trim()
+      .replace(/\/+$/, '');
+    const robleDbName = this.config.getOrThrow<string>('ROBLE_DBNAME');
+    this.baseUrl = `${robleAuthBase}/${robleDbName}`;
   }
 
   private handleRobleError(err: any): never {
@@ -130,9 +143,13 @@ export class AuthService {
 
   async logout(accessToken: string): Promise<void> {
     try {
+      const authorization = String(accessToken || '').startsWith('Bearer ')
+        ? String(accessToken)
+        : `Bearer ${String(accessToken || '').trim()}`;
+
       await firstValueFrom(
         this.http.post(`${this.baseUrl}/logout`, null, {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          headers: { Authorization: authorization },
         }),
       );
     } catch (err) {
