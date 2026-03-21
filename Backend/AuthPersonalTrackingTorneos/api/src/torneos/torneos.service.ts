@@ -10,6 +10,17 @@ import { CreateResultadoDto } from './dto/create-resultado.dto';
 import { EstadoTorneo } from './enums/estado-torneo.enum';
 import { generarCodigoAcceso } from 'src/common/utils/codigo-acceso.util';
 import { UpdateTorneoDto } from './dto/update-torneo.dto';
+import {
+  calculateSudokuTournamentScore,
+  countEditableCells,
+  createSudokuPuzzle,
+  generateSudokuSolution,
+  getSudokuTournamentHintLimit,
+  isSolvedSudokuBoard,
+  resolveSudokuTournamentDifficulty,
+  resolveSudokuTournamentSeed,
+  validateSudokuBoardShape,
+} from './utils/sudoku-tournament.util';
 
 type TorneoRecord = {
   _id?: string;
@@ -50,13 +61,71 @@ type PerfilBasicoRecord = {
   nombre?: string | null;
 };
 
+type SesionTorneoRecord = {
+  _id?: string;
+  torneoId: string;
+  usuarioId: string;
+  juegoId: string;
+  estado: string;
+  seed: string | null;
+  seedId: string | null;
+  intentoNumero: number;
+  fechaInicio: string;
+  fechaFin: string | null;
+  tiempoTranscurrido: number | null;
+  puntajeFinal: number | null;
+  errores: number | null;
+  pistasUsadas: number | null;
+};
+
+type SudokuTournamentRules = {
+  juegoId: 'sudoku';
+  difficultyKey: string;
+  difficultyLabel: string;
+  holes: number;
+  seed: string;
+  seedId: string | null;
+  hintLimit: number;
+  timeLimitSeconds: number | null;
+  attemptLimit: number;
+  maxParticipants: number | null;
+  torneoTipo: string;
+};
+
+type StartTournamentSessionResponse = {
+  tournament: TorneoRecord;
+  session: SesionTorneoRecord;
+  game: SudokuTournamentRules;
+  resumed: boolean;
+};
+
+type FinishTournamentSessionResponse = {
+  tournament: TorneoRecord;
+  session: SesionTorneoRecord;
+  result: ResultadoRecord | null;
+  outcome: 'FINALIZADA' | 'EXPIRADA';
+  elapsedSeconds: number;
+  score: number;
+  timeLimitSeconds: number | null;
+};
+
 @Injectable()
 export class TorneosService {
   private readonly TABLE_TORNEOS = 'Torneos';
   private readonly TABLE_PARTICIPANTES = 'Participantes';
   private readonly TABLE_RESULTADOS = 'ResultadosTorneo';
+  private readonly TABLE_SESIONES = 'SesionesTorneo';
+  private readonly SESSION_STATUS_INICIADA = 'INICIADA';
+  private readonly SESSION_STATUS_FINALIZADA = 'FINALIZADA';
+  private readonly SESSION_STATUS_ABANDONADA = 'ABANDONADA';
+  private readonly SESSION_STATUS_EXPIRADA = 'EXPIRADA';
+  private readonly TOURNAMENT_GAME_SUDOKU = 'sudoku';
 
   constructor(private readonly roble: RobleService) {}
+
+  private isPlainObject(value: unknown): value is Record<string, unknown> {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  }
 
   private isAdminRole(userRole?: string): boolean {
     return String(userRole ?? '').trim().toLowerCase() === 'admin';
@@ -77,6 +146,112 @@ export class TorneosService {
 
   private normalizeUserId(value: unknown): string {
     return String(value ?? '').trim();
+  }
+
+  private toSafeInteger(value: unknown): number | null {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+    return Math.trunc(parsed);
+  }
+
+  private getTournamentConfig(
+    torneo: Pick<TorneoRecord, 'configuracion'>,
+  ): Record<string, unknown> {
+    return this.isPlainObject(torneo.configuracion) ? torneo.configuracion : {};
+  }
+
+  private resolvePositiveLimit(value: unknown): number | null {
+    const parsed = this.toSafeInteger(value);
+    if (parsed === null || parsed <= 0) {
+      return null;
+    }
+    return parsed;
+  }
+
+  private parseTournamentDate(value: unknown): Date | null {
+    const raw = String(value ?? '').trim();
+    if (!raw) {
+      return null;
+    }
+
+    const isoWithoutZonePattern =
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/;
+    const normalized = isoWithoutZonePattern.test(raw) ? `${raw}-05:00` : raw;
+    const parsed = new Date(normalized);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  private getTournamentRules(torneo: TorneoRecord): SudokuTournamentRules {
+    const config = this.getTournamentConfig(torneo);
+    const difficulty = resolveSudokuTournamentDifficulty(config.dificultad);
+    const hintOverride = this.toSafeInteger(
+      config.pistasMaximas ?? config.numeroPistas ?? config.pistasPermitidas,
+    );
+    const timeLimitMinutes = this.resolvePositiveLimit(config.duracionMaximaMin);
+    const attemptLimit = this.resolvePositiveLimit(config.intentosMaximos) ?? 1;
+    const maxParticipants =
+      this.resolvePositiveLimit(config.maxParticipantes) ?? null;
+    const fallbackSeedSource = [
+      torneo._id ?? torneo.nombre,
+      torneo.fechaInicio,
+      difficulty.label,
+    ]
+      .filter(Boolean)
+      .join(':');
+
+    return {
+      juegoId: this.TOURNAMENT_GAME_SUDOKU,
+      difficultyKey: difficulty.key,
+      difficultyLabel: difficulty.label,
+      holes: difficulty.holes,
+      seed: resolveSudokuTournamentSeed(config.seedFija, fallbackSeedSource),
+      seedId: String(config.seedId ?? '').trim() || null,
+      hintLimit:
+        hintOverride !== null && hintOverride >= 0
+          ? hintOverride
+          : getSudokuTournamentHintLimit(difficulty),
+      timeLimitSeconds: timeLimitMinutes ? timeLimitMinutes * 60 : null,
+      attemptLimit,
+      maxParticipants,
+      torneoTipo: this.toUpperSafe(torneo.tipo),
+    };
+  }
+
+  private getSessionElapsedSeconds(
+    session: Pick<SesionTorneoRecord, 'fechaInicio'>,
+    referenceDate = new Date(),
+  ): number {
+    const startedAt = new Date(session.fechaInicio);
+    if (Number.isNaN(startedAt.getTime())) {
+      return 0;
+    }
+
+    return Math.max(
+      0,
+      Math.floor((referenceDate.getTime() - startedAt.getTime()) / 1000),
+    );
+  }
+
+  private sortRankingRows(resultados: ResultadoRecord[]): ResultadoRecord[] {
+    return [...resultados].sort((a, b) => {
+      if (b.puntaje !== a.puntaje) {
+        return b.puntaje - a.puntaje;
+      }
+      if (a.tiempo !== b.tiempo) {
+        return a.tiempo - b.tiempo;
+      }
+      return (
+        new Date(a.fechaRegistro).getTime() -
+        new Date(b.fechaRegistro).getTime()
+      );
+    });
   }
 
   private normalizeCreatorName(value: unknown): string | null {
@@ -386,6 +561,158 @@ export class TorneosService {
       };
     });
   }
+
+  private async listarSesionesUsuario(
+    accessToken: string,
+    torneoId: string,
+    usuarioId: string,
+  ): Promise<SesionTorneoRecord[]> {
+    const rows = await this.roble.read<SesionTorneoRecord>(
+      accessToken,
+      this.TABLE_SESIONES,
+      { torneoId, usuarioId },
+    );
+
+    return [...rows].sort((a, b) => {
+      const diffIntento =
+        (Number(a.intentoNumero) || 0) - (Number(b.intentoNumero) || 0);
+      if (diffIntento !== 0) {
+        return diffIntento;
+      }
+
+      return (
+        new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime()
+      );
+    });
+  }
+
+  private async buscarSesionPorId(
+    accessToken: string,
+    torneoId: string,
+    usuarioId: string,
+    sessionId: string,
+  ): Promise<SesionTorneoRecord | null> {
+    const rows = await this.roble.read<SesionTorneoRecord>(
+      accessToken,
+      this.TABLE_SESIONES,
+      {
+        _id: sessionId,
+        torneoId,
+        usuarioId,
+      },
+    );
+
+    return rows[0] ?? null;
+  }
+
+  private buildStartSessionResponse(
+    torneo: TorneoRecord,
+    session: SesionTorneoRecord,
+    rules: SudokuTournamentRules,
+    resumed: boolean,
+  ): StartTournamentSessionResponse {
+    return {
+      tournament: torneo,
+      session,
+      game: rules,
+      resumed,
+    };
+  }
+
+  private async marcarSesionExpirada(
+    accessToken: string,
+    session: SesionTorneoRecord,
+    elapsedSeconds: number,
+  ): Promise<SesionTorneoRecord> {
+    if (!session._id) {
+      throw new BadRequestException(
+        'La sesion del torneo no trae id y no puede expirar correctamente.',
+      );
+    }
+
+    return this.roble.update<SesionTorneoRecord>(
+      accessToken,
+      this.TABLE_SESIONES,
+      '_id',
+      session._id,
+      {
+        estado: this.SESSION_STATUS_EXPIRADA,
+        fechaFin: new Date().toISOString(),
+        tiempoTranscurrido: elapsedSeconds,
+        puntajeFinal: 0,
+        errores: session.errores ?? 0,
+        pistasUsadas: session.pistasUsadas ?? 0,
+      },
+    );
+  }
+
+  private async upsertResultadoTorneo(
+    accessToken: string,
+    torneoId: string,
+    usuarioId: string,
+    puntaje: number,
+    tiempo: number,
+  ): Promise<ResultadoRecord> {
+    const existentes = await this.roble.read<ResultadoRecord>(
+      accessToken,
+      this.TABLE_RESULTADOS,
+      { torneoId, usuarioId },
+    );
+
+    const nuevoResultado: ResultadoRecord = {
+      torneoId,
+      usuarioId,
+      puntaje,
+      tiempo,
+      fechaRegistro: new Date().toISOString(),
+    };
+
+    if (!existentes.length) {
+      const result = await this.roble.insert<ResultadoRecord>(
+        accessToken,
+        this.TABLE_RESULTADOS,
+        [nuevoResultado],
+      );
+
+      const inserted = result.inserted[0];
+      if (!inserted) {
+        const reason =
+          result.skipped?.[0]?.reason ?? 'Sin razón reportada por ROBLE';
+        throw new BadRequestException(
+          `No se pudo registrar el resultado: ${reason}`,
+        );
+      }
+
+      return inserted;
+    }
+
+    const actual = existentes[0];
+    const esMejor =
+      puntaje > actual.puntaje ||
+      (puntaje === actual.puntaje && tiempo < actual.tiempo);
+
+    if (!esMejor) {
+      return actual;
+    }
+
+    if (!actual._id) {
+      throw new BadRequestException(
+        'El resultado existente no trae id y no se puede actualizar.',
+      );
+    }
+
+    return this.roble.update<ResultadoRecord>(
+      accessToken,
+      this.TABLE_RESULTADOS,
+      '_id',
+      actual._id!,
+      {
+        puntaje: nuevoResultado.puntaje,
+        tiempo: nuevoResultado.tiempo,
+        fechaRegistro: nuevoResultado.fechaRegistro,
+      },
+    );
+  }
   private calcularEstadoAutomatico(torneo: TorneoRecord): EstadoTorneo | null {
     const estado = this.toEstadoTorneo(torneo.estado);
 
@@ -397,11 +724,11 @@ export class TorneosService {
     if (estado === EstadoTorneo.PAUSADO) return null;
     if (estado === EstadoTorneo.BORRADOR) return null;
 
-    const inicio = new Date(torneo.fechaInicio);
-    const fin = new Date(torneo.fechaFin);
+    const inicio = this.parseTournamentDate(torneo.fechaInicio);
+    const fin = this.parseTournamentDate(torneo.fechaFin);
     const ahora = new Date();
 
-    if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) {
+    if (!inicio || !fin) {
       return null;
     }
 
@@ -419,6 +746,9 @@ export class TorneosService {
     if (!nuevoEstado) return torneo;
 
     const estadoActual = this.toEstadoTorneo(torneo.estado);
+    if (!estadoActual) {
+      throw new BadRequestException('Estado actual invalido en torneo.');
+    }
     if (estadoActual === nuevoEstado) return torneo;
 
     if (!torneo._id) return torneo;
@@ -677,13 +1007,15 @@ export class TorneosService {
     userRole: string,
   ): Promise<TorneoRecord> {
     const torneoBase = await this.obtenerTorneoPorId(accessToken, torneoId);
-    if (!torneoBase) throw new Error('Torneo no existe');
+    if (!torneoBase) {
+      throw new NotFoundException('Torneo no existe');
+    }
 
     const torneo = await this.syncEstadoPorFecha(accessToken, torneoBase);
 
     // El creador o un admin pueden cancelar el torneo
     if (!this.canManageTournament(torneo, usuarioId, userRole)) {
-      throw new Error(
+      throw new ForbiddenException(
         'Solo el creador o un admin pueden cancelar el torneo.',
       );
     }
@@ -698,10 +1030,12 @@ export class TorneosService {
 
     // No se puede cancelar si ya finalizó
     if (estadoActual === EstadoTorneo.FINALIZADO) {
+      throw new BadRequestException('No se puede cancelar un torneo FINALIZADO.');
       throw new Error('No se puede cancelar un torneo FINALIZADO.');
     }
 
     if (!torneo._id) {
+      throw new BadRequestException('Torneo sin _id (no se puede actualizar).');
       throw new Error('Torneo sin _id (no se puede actualizar).');
     }
 
@@ -782,7 +1116,6 @@ export class TorneosService {
       nombre: dto.nombre,
       descripcion: dto.descripcion,
       creadorId,
-      creadorNombre,
       codigoAcceso: dto.codigoAcceso ?? null,
       esPublico: dto.esPublico,
       estado: EstadoTorneo.BORRADOR,
@@ -808,11 +1141,14 @@ export class TorneosService {
     if (!inserted) {
       const reason =
         result.skipped?.[0]?.reason ?? 'Sin razón reportada por ROBLE';
-      throw new Error(
+      throw new BadRequestException(
         `No se pudo insertar el resultado por este motivo: ${reason}`,
       );
     }
-    return inserted;
+    return {
+      ...inserted,
+      creadorNombre: this.normalizeCreatorName(creadorNombre),
+    };
   }
 
   // Aqui obetenemos la información de un torneo específico
@@ -870,23 +1206,48 @@ export class TorneosService {
     codigoAcceso?: string,
   ): Promise<ParticipanteRecord> {
     const torneoBase = await this.obtenerTorneoPorId(accessToken, torneoId);
-    if (!torneoBase) throw new Error('Este torneo no existe');
+    if (!torneoBase) {
+      throw new NotFoundException('Este torneo no existe');
+    }
 
     const torneo = await this.syncEstadoPorFecha(accessToken, torneoBase);
+    const rules = this.getTournamentRules(torneo);
     const estado = this.toEstadoTorneo(torneo.estado);
     if (
       estado === EstadoTorneo.FINALIZADO ||
       estado === EstadoTorneo.CANCELADO
     ) {
-      throw new Error('No se puede unir a un torneo FINALIZADO o CANCELADO.');
+      throw new BadRequestException(
+        'No se puede unir a un torneo FINALIZADO o CANCELADO.',
+      );
     }
 
     // Evitamos duplicado de inscripción
     const ya = await this.usuarioYaInscrito(accessToken, torneoId, usuarioId);
+    if (ya) {
+      throw new BadRequestException('El usuario ya esta inscrito en este torneo');
+    }
     if (ya) throw new Error('El usuario ya está inscrito en este torneo');
 
     // Validamos el código de acceso si el torneo es privado
+    if (rules.maxParticipants) {
+      const inscritosActuales = await this.listarParticipantes(accessToken, torneoId);
+      if (inscritosActuales.length >= rules.maxParticipants) {
+        throw new BadRequestException(
+          'El torneo ya alcanzo el maximo de participantes permitido.',
+        );
+      }
+    }
+
     if (torneo.esPublico === false) {
+      if (!codigoAcceso) {
+        throw new BadRequestException(
+          'Este torneo es privado y requiere un codigo de acceso valido',
+        );
+      }
+      if (!torneo.codigoAcceso || codigoAcceso !== torneo.codigoAcceso) {
+        throw new BadRequestException('Codigo de acceso invalido');
+      }
       if (!codigoAcceso)
         throw new Error(
           'Este torneo es privado y requiere un código de acceso valido',
@@ -951,6 +1312,261 @@ export class TorneosService {
     );
   }
 
+  async iniciarSesionTorneo(
+    accessToken: string,
+    torneoId: string,
+    usuarioId: string,
+  ): Promise<StartTournamentSessionResponse> {
+    const torneoBase = await this.obtenerTorneoPorId(accessToken, torneoId);
+    if (!torneoBase) {
+      throw new NotFoundException('Torneo no existe');
+    }
+
+    const torneo = await this.syncEstadoPorFecha(accessToken, torneoBase);
+    const estado = this.toEstadoTorneo(torneo.estado);
+    if (estado !== EstadoTorneo.ACTIVO) {
+      throw new BadRequestException(
+        'Solo puedes jugar un torneo cuando su estado es ACTIVO.',
+      );
+    }
+
+    if (!(await this.usuarioYaInscrito(accessToken, torneoId, usuarioId))) {
+      throw new ForbiddenException(
+        'Debes estar inscrito en el torneo antes de jugarlo.',
+      );
+    }
+
+    const rules = this.getTournamentRules(torneo);
+    if (rules.torneoTipo === 'PVP') {
+      throw new BadRequestException(
+        'El modo jugable de torneos desde Principal solo esta disponible para Sudoku individual.',
+      );
+    }
+
+    const sessions = await this.listarSesionesUsuario(
+      accessToken,
+      torneoId,
+      usuarioId,
+    );
+    const activeSession =
+      [...sessions]
+        .reverse()
+        .find(
+          (session) => session.estado === this.SESSION_STATUS_INICIADA,
+        ) ?? null;
+
+    if (activeSession) {
+      const elapsedSeconds = this.getSessionElapsedSeconds(activeSession);
+      const shouldExpire =
+        rules.timeLimitSeconds !== null &&
+        elapsedSeconds > rules.timeLimitSeconds;
+
+      if (!shouldExpire) {
+        return this.buildStartSessionResponse(
+          torneo,
+          activeSession,
+          rules,
+          true,
+        );
+      }
+
+      await this.marcarSesionExpirada(
+        accessToken,
+        activeSession,
+        elapsedSeconds,
+      );
+    }
+
+    const attemptsUsed = sessions.length;
+    if (attemptsUsed >= rules.attemptLimit) {
+      throw new BadRequestException(
+        `Ya agotaste el maximo de ${rules.attemptLimit} intento(s) permitido(s) para este torneo.`,
+      );
+    }
+
+    const session: SesionTorneoRecord = {
+      torneoId,
+      usuarioId,
+      juegoId: rules.juegoId,
+      estado: this.SESSION_STATUS_INICIADA,
+      seed: rules.seed,
+      seedId: rules.seedId,
+      intentoNumero: attemptsUsed + 1,
+      fechaInicio: new Date().toISOString(),
+      fechaFin: null,
+      tiempoTranscurrido: null,
+      puntajeFinal: null,
+      errores: null,
+      pistasUsadas: null,
+    };
+
+    const result = await this.roble.insert<SesionTorneoRecord>(
+      accessToken,
+      this.TABLE_SESIONES,
+      [session],
+    );
+    const inserted = result.inserted[0];
+    if (!inserted) {
+      const reason =
+        result.skipped?.[0]?.reason ?? 'Sin razon reportada por ROBLE';
+      throw new BadRequestException(
+        `No se pudo iniciar la sesion del torneo: ${reason}`,
+      );
+    }
+
+    return this.buildStartSessionResponse(torneo, inserted, rules, false);
+  }
+
+  async finalizarSesionTorneo(
+    accessToken: string,
+    torneoId: string,
+    sessionId: string,
+    usuarioId: string,
+    payload: {
+      board: unknown;
+      errorCount?: number;
+      hintsUsed?: number;
+    },
+  ): Promise<FinishTournamentSessionResponse> {
+    const torneoBase = await this.obtenerTorneoPorId(accessToken, torneoId);
+    if (!torneoBase) {
+      throw new NotFoundException('Torneo no existe');
+    }
+
+    const torneo = await this.syncEstadoPorFecha(accessToken, torneoBase);
+    const estadoTorneo = this.toEstadoTorneo(torneo.estado);
+    if (estadoTorneo === EstadoTorneo.CANCELADO) {
+      throw new BadRequestException(
+        'No puedes registrar partidas en un torneo cancelado.',
+      );
+    }
+
+    const session = await this.buscarSesionPorId(
+      accessToken,
+      torneoId,
+      usuarioId,
+      sessionId,
+    );
+    if (!session) {
+      throw new NotFoundException('La sesion de torneo no existe.');
+    }
+
+    if (session.estado !== this.SESSION_STATUS_INICIADA) {
+      throw new BadRequestException(
+        'Esta sesion ya fue cerrada y no puede finalizarse de nuevo.',
+      );
+    }
+
+    const rules = this.getTournamentRules(torneo);
+    const board = validateSudokuBoardShape(payload.board);
+    if (!board) {
+      throw new BadRequestException(
+        'El tablero enviado no tiene un formato Sudoku valido.',
+      );
+    }
+
+    const solution = generateSudokuSolution(session.seed || rules.seed);
+    const puzzle = createSudokuPuzzle(
+      solution,
+      rules.holes,
+      session.seed || rules.seed,
+    );
+    const elapsedSeconds = this.getSessionElapsedSeconds(session);
+    const safeErrorCount = Math.max(
+      0,
+      Math.trunc(Number(payload.errorCount) || 0),
+    );
+    const safeHintsUsed = Math.max(
+      0,
+      Math.trunc(Number(payload.hintsUsed) || 0),
+    );
+
+    if (safeHintsUsed > rules.hintLimit) {
+      throw new BadRequestException(
+        `El torneo solo permite ${rules.hintLimit} pista(s) por intento.`,
+      );
+    }
+
+    const limitExceeded =
+      rules.timeLimitSeconds !== null &&
+      elapsedSeconds > rules.timeLimitSeconds;
+
+    if (limitExceeded) {
+      const expiredSession = await this.roble.update<SesionTorneoRecord>(
+        accessToken,
+        this.TABLE_SESIONES,
+        '_id',
+        sessionId,
+        {
+          estado: this.SESSION_STATUS_EXPIRADA,
+          fechaFin: new Date().toISOString(),
+          tiempoTranscurrido: elapsedSeconds,
+          puntajeFinal: 0,
+          errores: safeErrorCount,
+          pistasUsadas: safeHintsUsed,
+        },
+      );
+
+      return {
+        tournament: torneo,
+        session: expiredSession,
+        result: null,
+        outcome: 'EXPIRADA',
+        elapsedSeconds,
+        score: 0,
+        timeLimitSeconds: rules.timeLimitSeconds,
+      };
+    }
+
+    if (!isSolvedSudokuBoard(board, solution)) {
+      throw new BadRequestException(
+        'La partida aun no esta resuelta. Completa el tablero o espera a que expire el tiempo.',
+      );
+    }
+
+    const score = calculateSudokuTournamentScore({
+      torneoTipo: rules.torneoTipo,
+      solvedEditableCells: countEditableCells(puzzle),
+      elapsedSeconds,
+      errorCount: safeErrorCount,
+      hintsUsed: safeHintsUsed,
+      difficulty: resolveSudokuTournamentDifficulty(rules.difficultyLabel),
+    });
+
+    const result = await this.upsertResultadoTorneo(
+      accessToken,
+      torneoId,
+      usuarioId,
+      score,
+      elapsedSeconds,
+    );
+
+    const updatedSession = await this.roble.update<SesionTorneoRecord>(
+      accessToken,
+      this.TABLE_SESIONES,
+      '_id',
+      sessionId,
+      {
+        estado: this.SESSION_STATUS_FINALIZADA,
+        fechaFin: new Date().toISOString(),
+        tiempoTranscurrido: elapsedSeconds,
+        puntajeFinal: score,
+        errores: safeErrorCount,
+        pistasUsadas: safeHintsUsed,
+      },
+    );
+
+    return {
+      tournament: torneo,
+      session: updatedSession,
+      result,
+      outcome: 'FINALIZADA',
+      elapsedSeconds,
+      score,
+      timeLimitSeconds: rules.timeLimitSeconds,
+    };
+  }
+
   // Aqui registramos el resultado de un participante en un torneo
   async registrarResultado(
     accessToken: string,
@@ -961,7 +1577,7 @@ export class TorneosService {
     // Verificamos que el usuario esté inscrito en el torneo
     const participantes = await this.roble.read<ParticipanteRecord>(
       accessToken,
-      'Participantes',
+      this.TABLE_PARTICIPANTES,
       {
         torneoId,
         usuarioId,
@@ -969,18 +1585,32 @@ export class TorneosService {
     );
 
     if (!participantes.length) {
+      throw new ForbiddenException('El usuario no esta inscrito en este torneo.');
       throw new Error('El usuario no está inscrito en este torneo.');
     }
 
     // Verificamos que el torneo esté ACTIVO
     const torneoBase = await this.obtenerTorneoPorId(accessToken, torneoId);
-    if (!torneoBase) throw new Error('Torneo no existe');
+    if (!torneoBase) {
+      throw new NotFoundException('Torneo no existe');
+    }
 
     const torneo = await this.syncEstadoPorFecha(accessToken, torneoBase);
     const estado = this.toEstadoTorneo(torneo.estado);
     if (estado !== EstadoTorneo.ACTIVO) {
+      throw new BadRequestException(
+        'Solo se pueden registrar resultados en torneos ACTIVO.',
+      );
       throw new Error('Solo se pueden registrar resultados en torneos ACTIVO.');
     }
+
+    return this.upsertResultadoTorneo(
+      accessToken,
+      torneoId,
+      usuarioId,
+      dto.puntaje,
+      dto.tiempo,
+    );
 
     // Buscamos el resultado existente
     const existentes = await this.roble.read<ResultadoRecord>(
@@ -1030,7 +1660,7 @@ export class TorneosService {
       accessToken,
       this.TABLE_RESULTADOS,
       '_id',
-      actual._id,
+      actual._id!,
       {
         puntaje: nuevoResultado.puntaje,
         tiempo: nuevoResultado.tiempo,
@@ -1053,18 +1683,7 @@ export class TorneosService {
       { torneoId },
     );
 
-    return resultados.sort((a, b) => {
-      if (b.puntaje !== a.puntaje) {
-        return b.puntaje - a.puntaje;
-      }
-      if (a.tiempo !== b.tiempo) {
-        return a.tiempo - b.tiempo;
-      }
-      return (
-        new Date(a.fechaRegistro).getTime() -
-        new Date(b.fechaRegistro).getTime()
-      );
-    });
+    return this.sortRankingRows(resultados);
   }
 
   async obtenerRankingPublico(torneoId: string): Promise<ResultadoRecord[]> {
@@ -1083,18 +1702,7 @@ export class TorneosService {
       { torneoId },
     );
 
-    return resultados.sort((a, b) => {
-      if (b.puntaje !== a.puntaje) {
-        return b.puntaje - a.puntaje;
-      }
-      if (a.tiempo !== b.tiempo) {
-        return a.tiempo - b.tiempo;
-      }
-      return (
-        new Date(a.fechaRegistro).getTime() -
-        new Date(b.fechaRegistro).getTime()
-      );
-    });
+    return this.sortRankingRows(resultados);
   }
 
   async obtenerResultadosPorUsuario(

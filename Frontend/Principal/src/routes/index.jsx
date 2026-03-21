@@ -9,6 +9,7 @@ import SudokuPage from '../pages/SudokuPage.jsx'
 import ProfilePage from '../pages/ProfilePage.jsx'
 import TournamentsPage from '../pages/TournamentsPage.jsx'
 import TournamentManagePage from '../pages/TournamentManagePage.jsx'
+import TournamentSudokuPage from '../pages/TournamentSudokuPage.jsx'
 
 const router = createBrowserRouter(
   [
@@ -54,6 +55,10 @@ const router = createBrowserRouter(
             {
               path: 'pvp/:matchId',
               element: <PvpMatchPage />,
+            },
+            {
+              path: 'torneos/:tournamentId/jugar',
+              element: <TournamentSudokuPage />,
             },
           ],
         },

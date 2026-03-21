@@ -34,6 +34,7 @@ const COMMON_CONFIG_KEYS = [
   'maxParticipantes',
   'duracionMaximaMin',
   'intentosMaximos',
+  'pistasMaximas',
   'dificultad',
   'seedFija',
   'permitirEmpates',
@@ -80,6 +81,7 @@ export function getTournamentFormDefaults() {
     maxParticipantes: '',
     duracionMaximaMin: '',
     intentosMaximos: '',
+    pistasMaximas: '',
     dificultad: '',
     seedFija: '',
     permitirEmpates: '',
@@ -222,6 +224,10 @@ export function splitTournamentConfig(configuracion) {
       Object.prototype.hasOwnProperty.call(config, 'intentosMaximos') && config.intentosMaximos !== null
         ? String(config.intentosMaximos)
         : '',
+    pistasMaximas:
+      Object.prototype.hasOwnProperty.call(config, 'pistasMaximas') && config.pistasMaximas !== null
+        ? String(config.pistasMaximas)
+        : '',
     dificultad:
       Object.prototype.hasOwnProperty.call(config, 'dificultad') && config.dificultad !== null
         ? String(config.dificultad)
@@ -250,6 +256,7 @@ export function buildTournamentConfig(commonValues, extraValues = {}) {
   const maxParticipantes = Number(common.maxParticipantes)
   const duracionMaximaMin = Number(common.duracionMaximaMin)
   const intentosMaximos = Number(common.intentosMaximos)
+  const pistasMaximas = Number(common.pistasMaximas)
 
   if (String(common.maxParticipantes || '').trim() && Number.isFinite(maxParticipantes)) {
     config.maxParticipantes = maxParticipantes
@@ -259,6 +266,9 @@ export function buildTournamentConfig(commonValues, extraValues = {}) {
   }
   if (String(common.intentosMaximos || '').trim() && Number.isFinite(intentosMaximos)) {
     config.intentosMaximos = intentosMaximos
+  }
+  if (String(common.pistasMaximas || '').trim() && Number.isFinite(pistasMaximas)) {
+    config.pistasMaximas = pistasMaximas
   }
   if (String(common.dificultad || '').trim()) {
     config.dificultad = String(common.dificultad).trim()
@@ -288,6 +298,9 @@ export function summarizeTournamentConfig(configuracion) {
   }
   if (config.intentosMaximos !== undefined) {
     summary.push(`Intentos: ${config.intentosMaximos}`)
+  }
+  if (config.pistasMaximas !== undefined) {
+    summary.push(`Pistas: ${config.pistasMaximas}`)
   }
   if (config.dificultad !== undefined) {
     summary.push(`Dificultad: ${config.dificultad}`)

@@ -103,7 +103,9 @@ function TournamentManagePage() {
   const allowedTransitions = getAllowedTournamentTransitions(tournament?.estado)
   const configSummary = summarizeTournamentConfig(tournament?.configuracion)
   const currentState = String(tournament?.estado || '').trim().toUpperCase()
+  const currentType = String(tournament?.tipo || '').trim().toUpperCase()
   const isClosedState = currentState === 'FINALIZADO' || currentState === 'CANCELADO'
+  const canPlayTournament = isAuthenticated && isParticipant && currentState === 'ACTIVO' && currentType !== 'PVP'
   const inviteLink =
     tournament?.esPublico === false
       ? buildTournamentInviteLink(tournament?._id, tournament?.codigoAcceso)
@@ -182,9 +184,11 @@ function TournamentManagePage() {
 
     try {
       const requiresCode = tournament?.esPublico === false || Boolean(inviteCodeFromQuery)
+      const resolvedJoinCode =
+        requiresCode && !joinCode.trim() && isManager ? String(tournament?.codigoAcceso || '').trim() : joinCode.trim()
       await apiClient.joinTournament(
         tournamentId,
-        requiresCode ? { codigoAcceso: joinCode.trim() } : {},
+        requiresCode ? { codigoAcceso: resolvedJoinCode } : {},
         accessToken,
       )
       setPageStatus('Te uniste al torneo correctamente.')
@@ -436,6 +440,20 @@ function TournamentManagePage() {
                   </button>
                 )}
               </div>
+              {isParticipant ? (
+                <p className="status ok">Tambien estas inscrito como jugador en este torneo.</p>
+              ) : isClosedState ? (
+                <p className="status">El torneo ya no admite nuevas inscripciones.</p>
+              ) : (
+                <button className="btn primary" type="button" disabled={actionBusy} onClick={handleJoinTournament}>
+                  {actionBusy ? 'Inscribiendote...' : 'Inscribirme para jugar'}
+                </button>
+              )}
+              {canPlayTournament ? (
+                <button className="btn primary" type="button" onClick={() => navigate(`/torneos/${tournamentId}/jugar`)}>
+                  Jugar torneo
+                </button>
+              ) : null}
             </>
           ) : !isAuthenticated ? (
             <>
@@ -455,11 +473,19 @@ function TournamentManagePage() {
             <>
               <p className="mode-copy">
                 {isParticipant
-                  ? 'Ya estas inscrito en este torneo.'
+                  ? canPlayTournament
+                    ? 'Ya estas inscrito. Puedes entrar a jugar este torneo ahora mismo.'
+                    : 'Ya estas inscrito en este torneo.'
                   : isClosedState
                     ? 'Este torneo ya no acepta nuevas inscripciones.'
                     : 'Puedes unirte si el torneo sigue disponible.'}
               </p>
+
+              {canPlayTournament ? (
+                <button className="btn primary" type="button" onClick={() => navigate(`/torneos/${tournamentId}/jugar`)}>
+                  Jugar torneo
+                </button>
+              ) : null}
 
               {isParticipant || isClosedState ? null : (
                 <div className="tournament-join-box">

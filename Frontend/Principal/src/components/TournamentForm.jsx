@@ -38,6 +38,7 @@ function buildInitialFormState(initialTournament) {
     maxParticipantes: common.maxParticipantes,
     duracionMaximaMin: common.duracionMaximaMin,
     intentosMaximos: common.intentosMaximos,
+    pistasMaximas: common.pistasMaximas,
     dificultad: common.dificultad,
     seedFija: common.seedFija,
     permitirEmpates: common.permitirEmpates,
@@ -120,6 +121,7 @@ function TournamentForm({
           maxParticipantes: formData.maxParticipantes,
           duracionMaximaMin: formData.duracionMaximaMin,
           intentosMaximos: formData.intentosMaximos,
+          pistasMaximas: formData.pistasMaximas,
           dificultad: formData.dificultad,
           seedFija: formData.seedFija,
           permitirEmpates: formData.permitirEmpates,
@@ -300,6 +302,20 @@ function TournamentForm({
               value={formData.intentosMaximos}
               onChange={handleInputChange}
               placeholder="Ej. 3"
+              disabled={busy}
+            />
+          </label>
+
+          <label className="auth-field">
+            <span>Pistas maximas</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              name="pistasMaximas"
+              value={formData.pistasMaximas}
+              onChange={handleInputChange}
+              placeholder="Ej. 2"
               disabled={busy}
             />
           </label>

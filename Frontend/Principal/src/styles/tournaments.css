@@ -399,6 +399,24 @@
   color: #fff;
 }
 
+.tournament-play-hero {
+  align-items: stretch;
+}
+
+.tournament-play-card {
+  gap: 1.25rem;
+}
+
+.tournament-play-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.tournament-play-actions {
+  justify-content: center;
+}
+
 :root[data-theme='dark'] .tournament-badge--success {
   background: rgba(28, 119, 74, 0.25);
   color: #b8f3cf;

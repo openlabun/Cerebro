@@ -19,6 +19,7 @@ import { UpdateEstadoTorneoDto } from './dto/update-estado-torneo.dto';
 import { UpdateTorneoDto } from './dto/update-torneo.dto';
 import { RobleAuthGuard } from 'src/common/guards/roble-auth.guard';
 import * as robleAuthGuard from 'src/common/guards/roble-auth.guard';
+import { FinishTorneoSessionDto } from './dto/finish-torneo-session.dto';
 
 @ApiTags('Torneos')
 @Controller('torneos')
@@ -204,6 +205,42 @@ export class TorneosController {
       torneoId,
       usuarioId,
       dto.codigoAcceso,
+    );
+  }
+
+  @Post(':id/sesiones/iniciar')
+  @ApiBearerAuth()
+  @UseGuards(RobleAuthGuard)
+  async iniciarSesion(
+    @Req() req: robleAuthGuard.RobleRequest,
+    @Param('id') torneoId: string,
+  ) {
+    const usuarioId = this.getUserId(req);
+
+    return this.service.iniciarSesionTorneo(
+      req.accessToken,
+      torneoId,
+      usuarioId,
+    );
+  }
+
+  @Post(':id/sesiones/:sessionId/finalizar')
+  @ApiBearerAuth()
+  @UseGuards(RobleAuthGuard)
+  async finalizarSesion(
+    @Req() req: robleAuthGuard.RobleRequest,
+    @Param('id') torneoId: string,
+    @Param('sessionId') sessionId: string,
+    @Body() dto: FinishTorneoSessionDto,
+  ) {
+    const usuarioId = this.getUserId(req);
+
+    return this.service.finalizarSesionTorneo(
+      req.accessToken,
+      torneoId,
+      sessionId,
+      usuarioId,
+      dto,
     );
   }
 

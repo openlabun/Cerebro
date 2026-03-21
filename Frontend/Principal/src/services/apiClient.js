@@ -451,6 +451,23 @@ export const apiClient = {
     })
   },
 
+  startTournamentSession(tournamentId, accessToken) {
+    return request(`torneos/${tournamentId}/sesiones/iniciar`, {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  finishTournamentSession(tournamentId, sessionId, payload, accessToken) {
+    return request(`torneos/${tournamentId}/sesiones/${sessionId}/finalizar`, {
+      method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
   createPvpMatch(payload = {}, accessToken) {
     return request('match', {
       method: 'POST',
