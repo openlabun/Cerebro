@@ -335,9 +335,33 @@ export const apiClient = {
     })
   },
 
+  getTournaments(accessToken) {
+    return request('torneos', {
+      method: 'GET',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  getPublicTournaments() {
+    return request('torneos/public', {
+      method: 'GET',
+      baseUrl: 'auth',
+    })
+  },
+
   createTournament(payload, accessToken) {
     return request('torneos', {
       method: 'POST',
+      baseUrl: 'auth',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
+  updateTournament(tournamentId, payload, accessToken) {
+    return request(`torneos/${tournamentId}`, {
+      method: 'PUT',
       baseUrl: 'auth',
       token: accessToken,
       body: payload,
@@ -361,6 +385,13 @@ export const apiClient = {
     })
   },
 
+  getPublicTournament(tournamentId) {
+    return request(`torneos/public/${tournamentId}`, {
+      method: 'GET',
+      baseUrl: 'auth',
+    })
+  },
+
   getTournamentParticipants(tournamentId, accessToken) {
     return request(`torneos/${tournamentId}/participantes`, {
       method: 'GET',
@@ -369,12 +400,54 @@ export const apiClient = {
     })
   },
 
-  joinTournament(tournamentId, accessToken) {
+  getPublicTournamentParticipants(tournamentId) {
+    return request(`torneos/public/${tournamentId}/participantes`, {
+      method: 'GET',
+      baseUrl: 'auth',
+    })
+  },
+
+  getTournamentRanking(tournamentId, accessToken) {
+    return request(`torneos/${tournamentId}/ranking`, {
+      method: 'GET',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  getPublicTournamentRanking(tournamentId) {
+    return request(`torneos/public/${tournamentId}/ranking`, {
+      method: 'GET',
+      baseUrl: 'auth',
+    })
+  },
+
+  getTournamentResultsByUser(userId, accessToken) {
+    return request(`torneos/usuarios/${userId}/resultados`, {
+      method: 'GET',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  deleteTournament(tournamentId, accessToken) {
+    return request(`torneos/${tournamentId}`, {
+      method: 'DELETE',
+      baseUrl: 'auth',
+      token: accessToken,
+    })
+  },
+
+  joinTournament(tournamentId, payloadOrToken = {}, maybeAccessToken) {
+    const legacySignature = typeof payloadOrToken === 'string' && maybeAccessToken === undefined
+    const body = legacySignature ? {} : payloadOrToken || {}
+    const accessToken = legacySignature ? payloadOrToken : maybeAccessToken
+
     return request(`torneos/${tournamentId}/unirse`, {
       method: 'POST',
       baseUrl: 'auth',
       token: accessToken,
-      body: {},
+      body,
     })
   },
 

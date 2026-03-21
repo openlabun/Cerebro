@@ -20,6 +20,7 @@ export class RobleService {
   private readonly dbName: string;
   private readonly authBase: string;
   private readonly dbBase: string;
+  private readonly publicReadToken: string | null;
 
   constructor(
     private readonly http: HttpService,
@@ -28,6 +29,23 @@ export class RobleService {
     this.dbName = this.config.getOrThrow<string>('ROBLE_DBNAME');
     this.authBase = this.config.getOrThrow<string>('ROBLE_AUTH_BASE');
     this.dbBase = this.config.getOrThrow<string>('ROBLE_DB_BASE');
+    this.publicReadToken =
+      this.config.get<string>('ROBLE_PUBLIC_READ_TOKEN')?.trim() || null;
+  }
+
+  private getPublicReadTokenOrThrow(): string {
+    if (this.publicReadToken) {
+      return this.publicReadToken;
+    }
+
+    throw new HttpException(
+      {
+        statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+        message:
+          'ROBLE_PUBLIC_READ_TOKEN no esta configurado para lecturas publicas.',
+      },
+      HttpStatus.SERVICE_UNAVAILABLE,
+    );
   }
 
   private throwRobleRequestError(
@@ -292,6 +310,13 @@ export class RobleService {
     } catch (error) {
       this.throwRobleRequestError(error, 'Error al leer datos en ROBLE');
     }
+  }
+
+  async readWithPublicToken<T>(
+    tableName: string,
+    filters?: Record<string, string | number>,
+  ): Promise<T[]> {
+    return this.read<T>(this.getPublicReadTokenOrThrow(), tableName, filters);
   }
 
   async update<T>(

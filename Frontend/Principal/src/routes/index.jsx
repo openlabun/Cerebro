@@ -7,6 +7,8 @@ import SimulationPage from '../pages/SimulationPage.jsx'
 import PvpMatchPage from '../pages/PvpMatchPage.jsx'
 import SudokuPage from '../pages/SudokuPage.jsx'
 import ProfilePage from '../pages/ProfilePage.jsx'
+import TournamentsPage from '../pages/TournamentsPage.jsx'
+import TournamentManagePage from '../pages/TournamentManagePage.jsx'
 
 const router = createBrowserRouter(
   [
@@ -33,6 +35,14 @@ const router = createBrowserRouter(
         {
           path: 'profile',
           element: <ProfilePage />,
+        },
+        {
+          path: 'torneos',
+          element: <TournamentsPage />,
+        },
+        {
+          path: 'torneos/:tournamentId',
+          element: <TournamentManagePage />,
         },
         {
           element: <RequireAuth />,
