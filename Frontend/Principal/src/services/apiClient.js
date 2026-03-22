@@ -353,7 +353,7 @@ export const apiClient = {
   },
 
   getMyAchievements(accessToken) {
-    return request('my-achievements', {
+    return request('achievements/me', {
       method: 'GET',
       baseUrl: 'auth',
       token: accessToken,
@@ -361,10 +361,11 @@ export const apiClient = {
   },
 
   unlockAchievement(accessToken, logroId) {
-    return request(`achievements/${logroId}/unlock`, {
+    return request('achievements/unlock', {
       method: 'POST',
       baseUrl: 'auth',
       token: accessToken,
+      body: { logroId },
     })
   },
 

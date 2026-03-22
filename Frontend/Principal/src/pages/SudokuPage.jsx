@@ -29,7 +29,6 @@ function SudokuPageContent() {
     correctCounts,
     showAchievementPopup,
     achievementPopupItems,
-    streakMessage,
     setPaused,
     setNoteMode,
     setHighlightEnabled,
@@ -139,12 +138,6 @@ function SudokuPageContent() {
               Jugar otra vez
             </button>
           </div>
-        </div>
-      ) : null}
-
-      {streakMessage ? (
-        <div className="sudoku-streak-note" role="status" aria-live="polite">
-          {streakMessage}
         </div>
       ) : null}
 

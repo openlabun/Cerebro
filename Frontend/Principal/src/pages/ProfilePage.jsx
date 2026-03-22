@@ -8,6 +8,40 @@ const DEFAULT_PROFILE_NAME = 'Invitado#0001'
 const DEFAULT_PROFILE_TITLE = 'Titulo: "El dios de los números"'
 const GAME_ID_SUDOKU = 'uVsB-k2rjora'
 
+const ACHIEVEMENT_ID_KEY_MAP = {
+  jNVlXBxVZ4Ik: 'first-game',
+  'jNVlXBxVZ4Ik': 'first-game',
+  'eKdjK4OKd_qV': 'five-games',
+  '_8uXFa1YZV-d': 'ten-games',
+}
+
+async function loadAchievementsFromRemote(accessToken) {
+  try {
+    const catalog = await apiClient.getAchievements(accessToken)
+    const myAchievements = await apiClient.getMyAchievements(accessToken)
+    if (!Array.isArray(catalog) || !Array.isArray(myAchievements)) return new Set()
+
+    const byId = new Map()
+    catalog.forEach((item) => {
+      const logroId = String(item?._id || '')
+      if (!logroId) return
+
+      const key = ACHIEVEMENT_ID_KEY_MAP[logroId]
+      if (!key) return
+
+      byId.set(logroId, key)
+    })
+
+    const unlockedKeys = myAchievements
+      .map((item) => byId.get(String(item?.logroId || '')))
+      .filter(Boolean)
+
+    return new Set(unlockedKeys)
+  } catch (error) {
+    return new Set()
+  }
+}
+
 const DEFAULT_PROFILE_MODE_STATS = {
   sudoku: [
     'Partidas jugadas: -',
@@ -126,7 +160,7 @@ function ProfilePage() {
         }))
       }
     } catch (error) {
-      console.warn('Error cargando perfil desde API:', error)
+      // Error loading profile removed
     }
   }
 
@@ -150,7 +184,13 @@ function ProfilePage() {
                   : '-'
 
         const frame = getFrameByElo(elo)
-        const unlocked = new Set(getUnlockedKeysByRules(partidasJugadas, elo))
+
+        const localUnlocked = new Set(getUnlockedKeysByRules(partidasJugadas, elo))
+        const remoteUnlocked = await loadAchievementsFromRemote(accessToken).catch((err) => {
+          return new Set()
+        })
+
+        const mergedUnlocked = new Set([...localUnlocked, ...Array.from(remoteUnlocked || [])])
 
         setProfileModeStats((prev) => ({
           ...prev,
@@ -161,11 +201,11 @@ function ProfilePage() {
           ],
         }))
 
-        setUnlockedBadges(unlocked)
+        setUnlockedBadges(mergedUnlocked)
         setSelectedFrame(frame)
       }
     } catch (error) {
-      console.warn('Fallo cargando estadísticas de Sudoku:', error)
+      // Error loading sudoku stats removed
     } finally {
       setLoading(false)
     }

@@ -28,18 +28,18 @@ const ACHIEVEMENT_BADGES = [
   { key: 'score-over-500', label: 'Puntaje >500', icon: '🏆', description: 'Alcanza un puntaje mayor a 500 en una partida.' },
 ]
 
-function normalizeText(value) {
-  return String(value || '').trim().toLowerCase()
+const ACHIEVEMENT_ID_KEY_MAP = {
+  'jNVlXBxVZ4Ik': 'first-game',
+  'eKdjK4OKd_qV': 'five-games',
+  '_8uXFa1YZV-d': 'ten-games',
 }
 
-function mapAchievementNameToBadgeKey(name) {
-  const normalized = normalizeText(name)
-  if (!normalized) return null
-  if (normalized.includes('primera') && normalized.includes('partida')) return 'first-game'
-  if (normalized.includes('5') && normalized.includes('partida')) return 'five-games'
-  if (normalized.includes('10') && normalized.includes('partida')) return 'ten-games'
-  if (normalized.includes('500') && normalized.includes('puntaje')) return 'score-over-500'
-  return null
+const ACHIEVEMENT_KEY_ID_MAP = Object.fromEntries(
+  Object.entries(ACHIEVEMENT_ID_KEY_MAP).map(([id, key]) => [key, id])
+)
+
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase()
 }
 
 function getUnlockedKeysByRules(partidasJugadas = 0, bestScore = 0) {
@@ -165,7 +165,6 @@ export function useLocalSudokuGame() {
   const [unlockedBadges, setUnlockedBadges] = useState(new Set())
   const [showAchievementPopup, setShowAchievementPopup] = useState(false)
   const [achievementPopupItems, setAchievementPopupItems] = useState([])
-  const [streakMessage, setStreakMessage] = useState('')
 
   const {
     puzzle,
@@ -199,14 +198,22 @@ export function useLocalSudokuGame() {
       }
 
       catalog.forEach((item) => {
-        const key = mapAchievementNameToBadgeKey(item?.nombre)
-        if (!key || !item?._id) return
-        map.set(key, String(item._id))
+        const logroId = String(item?._id || '')
+        if (!logroId) return
+
+        const key = ACHIEVEMENT_ID_KEY_MAP[logroId]
+        if (!key) return
+
+        if (map.has(key) && map.get(key) !== logroId) {
+          // Duplicate key warning removed
+        }
+
+        map.set(key, logroId)
       })
 
       achievementCatalogRef.current = map
     } catch (error) {
-      console.warn('No se pudo cargar el catalogo de logros:', error)
+      achievementCatalogRef.current = new Map()
     }
   }
 
@@ -230,27 +237,38 @@ export function useLocalSudokuGame() {
         .map((item) => byId.get(String(item?.logroId || '')))
         .filter(Boolean)
     } catch (error) {
-      console.warn('No se pudieron consultar los logros del usuario:', error)
       return []
     }
   }
 
   async function unlockRemoteAchievements(unlockedKeys) {
     if (!accessToken) return
-    const map = achievementCatalogRef.current
-    if (map.size === 0) return
 
-    const promises = Array.from(new Set(unlockedKeys))
-      .map((badgeKey) => map.get(badgeKey))
-      .filter(Boolean)
-      .map((logroId) =>
-        apiClient.unlockAchievement(accessToken, logroId).catch((error) => {
-          console.warn(`No se pudo desbloquear logro remoto ${logroId}:`, error)
+    const uniqueKeys = Array.from(new Set(unlockedKeys))
+
+    const promises = uniqueKeys
+      .map((badgeKey) => {
+        const logroId = ACHIEVEMENT_KEY_ID_MAP[badgeKey]
+        if (!logroId) {
           return null
-        }),
-      )
+        }
+        return apiClient.unlockAchievement(accessToken, logroId)
+          .then((result) => ({ badgeKey, logroId, result }))
+          .catch((error) => {
+            return null
+          })
+      })
+      .filter(Boolean)
 
-    await Promise.all(promises)
+    const outcomes = await Promise.all(promises)
+    // Si ocurre problema de backend, se mantiene el estado local desbloqueado.
+    const unlockedRemote = outcomes
+      .filter(Boolean)
+      .map((item) => item?.badgeKey)
+
+    if (unlockedRemote.length > 0) {
+      setUnlockedBadges((prev) => new Set([...prev, ...unlockedRemote]))
+    }
   }
 
   async function registerSudokuActivity(nextScore, gameSession) {
@@ -300,7 +318,7 @@ export function useLocalSudokuGame() {
           const isWithinStreakWindow = elapsedMs !== null && elapsedMs <= STREAK_SESSION_WINDOW_MS
 
           const shouldReset = elapsedMs !== null && !isSameSessionDay && elapsedMs > STREAK_SESSION_WINDOW_MS
-          const shouldIncrease = elapsedMs === null || shouldReset || (!isSameSessionDay && isWithinStreakWindow)
+          const shouldIncrease = elapsedMs === null || (!isSameSessionDay && isWithinStreakWindow)
 
           if (shouldReset) {
             await apiClient.resetStreak(accessToken)
@@ -312,7 +330,7 @@ export function useLocalSudokuGame() {
           const refreshedProfile = await apiClient.getMyProfile(accessToken)
           const streak = Number(refreshedProfile?.rachaActual)
           if (!Number.isNaN(streak)) {
-            setStreakMessage(`Racha actual: ${streak}`)
+            // Streak message removed
           }
         } catch (err) {
           console.warn('Error sincronizando racha:', err)
@@ -321,7 +339,6 @@ export function useLocalSudokuGame() {
 
       return { recorded: true, newlyUnlockedAchievements }
     } catch (error) {
-      console.warn('Error registrando actividad de Sudoku:', error)
       if (isVerified === false) {
         setStatus(`No se pudo sincronizar tu progreso porque la cuenta ${user?.email || 'actual'} no esta verificada.`)
       }
@@ -424,7 +441,6 @@ export function useLocalSudokuGame() {
       await apiClient.addExperience(accessToken, xpGain)
       persistenceOk = true
     } catch (error) {
-      console.warn('No se pudo persistir la sesion de Sudoku:', error)
       if (isVerified === false) {
         setStatus(`No se pudo sincronizar puntaje, XP o ELO porque la cuenta ${user?.email || 'actual'} no esta verificada.`)
       }
@@ -629,7 +645,6 @@ export function useLocalSudokuGame() {
     hintLimit,
     showAchievementPopup,
     achievementPopupItems,
-    streakMessage,
     setPaused,
     setNoteMode,
     setHighlightEnabled,

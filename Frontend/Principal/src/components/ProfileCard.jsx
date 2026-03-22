@@ -37,7 +37,21 @@ function ProfileCard({ profileData, profileModeStats, isAuthenticated, loading, 
 
   useEffect(() => {
     if (parentUnlockedBadges) {
-      setUnlockedBadges(new Set(parentUnlockedBadges))
+      const unlocked = new Set(parentUnlockedBadges)
+      setUnlockedBadges(unlocked)
+
+      setSelectedBadges((prev) => {
+        const next = [...prev]
+        const unlockedArray = Array.from(unlocked)
+
+        for (let i = 0; i < next.length; i += 1) {
+          if (!next[i] && unlockedArray[i]) {
+            next[i] = unlockedArray[i]
+          }
+        }
+
+        return next
+      })
     }
   }, [parentUnlockedBadges])
 
