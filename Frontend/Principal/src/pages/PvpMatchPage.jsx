@@ -708,28 +708,6 @@ function PvpMatchPage() {
     }
 
     return { editable: true, message: '' }
-  async function handlePvpCompletion() {
-    if (!c1AccessToken) return
-
-    const score = myGame.score
-    const resultado = match.ganadorId === user.sub ? 'victoria' : 'derrota'
-    const xpGain = Math.max(1, Math.floor(score / 10))
-
-    try {
-      const gameSession = await apiClient.createGameSession(c1AccessToken, {
-        juegoId: GAME_ID_SUDOKU,
-        puntaje: score,
-        resultado,
-        cambioElo: 0,
-        tiempo: myGame.durationMs || 0,
-        seedId: null,
-        seed: match.seed,
-      })
-      await apiClient.addExperience(c1AccessToken, xpGain)
-      await registerSudokuActivity(c1AccessToken, score, gameSession)
-    } catch (error) {
-      console.warn('Error updating PvP stats:', error)
-    }
   }
 
   return (

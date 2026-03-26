@@ -138,6 +138,15 @@ function ProfilePage() {
     loadRemoteAchievements()
   }, [isAuthenticated, accessToken])
 
+  // Cargar datos completos del perfil desde la API (nivel/experiencia/racha)
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) {
+      return
+    }
+
+    loadProfileDataFromApi()
+  }, [isAuthenticated, accessToken])
+
   // Cargar estadísticas del juego
   useEffect(() => {
     if (!isAuthenticated || !accessToken) {
