@@ -1,5 +1,41 @@
 # Componentes del Sistema e Interacción
 
+## Descripción general
+
+Este documento describe la arquitectura general de CEREBRO, explicando cómo se organizan sus componentes, cómo interactúan entre sí y qué decisiones técnicas justifican la estructura adoptada. Su propósito es mostrar de forma explícita la composición del sistema, los criterios considerados al definir la solución arquitectónica y las razones por las cuales se eligió una arquitectura modular, escalable y orientada al mantenimiento.
+
+## Criterios de comparación
+
+Para definir la arquitectura final del sistema, se tuvieron en cuenta los siguientes criterios de comparación entre las posibles alternativas de diseño:
+
+- **Escalabilidad**: Se evaluó qué tan fácil sería aumentar la capacidad del sistema a medida que creciera la cantidad de usuarios, partidas y torneos simultáneos.
+
+- **Mantenibilidad**: Se comparó qué enfoque permitía modificar, corregir o extender funcionalidades con menor impacto en el resto del sistema.
+
+- **Desacoplamiento**: Se consideró el nivel de independencia entre módulos para evitar dependencias innecesarias y facilitar la evolución del proyecto.
+
+- **Reutilización**: Se analizó qué tan sencillo sería reutilizar componentes, lógica de negocio e interfaces en distintas partes de la plataforma.
+
+- **Experiencia de usuario**: Se valoró la capacidad de la arquitectura para sostener una experiencia consistente, fluida y adaptable tanto en web como en una futura aplicación móvil.
+
+- **Facilidad de integración**: Se tomó en cuenta la posibilidad de integrar servicios externos, nuevos juegos o módulos adicionales sin rediseñar por completo la solución existente.
+
+## Preguntas clave
+
+Antes de definir la arquitectura final, se plantearon varias preguntas clave que guiaron la toma de decisiones:
+
+- **¿Cómo organizar el sistema para que pueda crecer sin volverse difícil de mantener?**
+
+- **¿Qué tipo de estructura permite integrar nuevos módulos o modos de juego con el menor impacto posible?**
+
+- **¿Cómo garantizar una comunicación clara entre frontend, backend, base de datos y servicios complementarios?**
+
+- **¿Qué enfoque facilita una futura transición o ampliación hacia una aplicación móvil?**
+
+- **¿Cómo evitar que una sola parte del sistema concentre demasiadas responsabilidades?**
+
+- **¿Qué arquitectura responde mejor a los requerimientos de rendimiento, escalabilidad y evolución del proyecto?**
+
 ## Evolución de la arquitectura
 
 Antes de consolidar la arquitectura final de CEREBRO, se contemplaron varios enfoques iniciales que parecían viables en una primera etapa del proyecto. Sin embargo, al analizar mejor los requerimientos funcionales, la escalabilidad esperada y la necesidad de mantener separados los distintos dominios del sistema, se tomaron decisiones arquitectónicas más sostenibles.
