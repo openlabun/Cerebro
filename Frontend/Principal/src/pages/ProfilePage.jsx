@@ -156,6 +156,20 @@ function ProfilePage() {
     loadSudokuStats()
   }, [isAuthenticated, accessToken])
 
+  // Escuchar evento post-partida PvP para recargar datos de perfil
+  useEffect(() => {
+    const onStatsUpdate = () => {
+      if (!isAuthenticated || !accessToken) return
+
+      loadProfileDataFromApi()
+      loadSudokuStats()
+      loadRemoteAchievements()
+    }
+
+    window.addEventListener('sudokuStatsUpdated', onStatsUpdate)
+    return () => window.removeEventListener('sudokuStatsUpdated', onStatsUpdate)
+  }, [isAuthenticated, accessToken])
+
   const loadProfileDataFromApi = async () => {
     try {
       const perfil = await apiClient.getMyProfile(accessToken).catch(() => null)

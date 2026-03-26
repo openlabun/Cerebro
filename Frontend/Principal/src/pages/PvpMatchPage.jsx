@@ -445,6 +445,34 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
     handlePvpCompletion()
   }, [match, myGame])
 
+  async function handlePvpCompletion() {
+    if (!c1AccessToken || !match || !myGame) return
+
+    const score = Number(myGame.score || 0)
+    const resultado = match.ganadorId === user?.sub ? 'victoria' : 'derrota'
+    const xpGain = Math.max(1, Math.floor(score / 10))
+
+    try {
+      const gameSession = await apiClient.createGameSession(c1AccessToken, {
+        juegoId: GAME_ID_SUDOKU,
+        puntaje: score,
+        resultado,
+        cambioElo: 0,
+        tiempo: Number(myGame.durationMs || 0),
+        seedId: match.seed ? String(match.seed) : null,
+        seed: Number(match.seed || 0),
+      })
+
+      await apiClient.addExperience(c1AccessToken, xpGain)
+      await registerSudokuActivity(c1AccessToken, score, gameSession)
+
+      window.dispatchEvent(new CustomEvent('sudokuStatsUpdated', { detail: { juegoId: GAME_ID_SUDOKU } }))
+      setStatus(`XP ganada: ${xpGain}. Resultado PvP: ${resultado}`, true)
+    } catch (error) {
+      console.warn('Error updating PvP stats:', error)
+    }
+  }
+
   async function handleCopyInviteLink() {
     try {
       await navigator.clipboard.writeText(inviteLink)
