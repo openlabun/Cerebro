@@ -20,6 +20,80 @@ import {
 } from '../lib/sudoku.js'
 import { apiClient } from '../services/apiClient.js'
 
+const GAME_ID_SUDOKU = 'uVsB-k2rjora'
+
+const ACHIEVEMENT_ID_KEY_MAP = {
+  'jNVlXBxVZ4Ik': 'first-game',
+  'eKdjK4OKd_qV': 'five-games',
+  '_8uXFa1YZV-d': 'ten-games',
+  'pLHLX9-29oIY': 'score-over-500',
+}
+
+async function loadAchievementsFromRemote(accessToken) {
+  try {
+    const catalog = await apiClient.getAchievements(accessToken)
+    const myAchievements = await apiClient.getMyAchievements(accessToken)
+    if (!Array.isArray(catalog) || !Array.isArray(myAchievements)) return new Set()
+
+    const byId = new Map()
+    catalog.forEach((item) => {
+      const logroId = String(item?._id || '')
+      if (!logroId) return
+
+      const key = ACHIEVEMENT_ID_KEY_MAP[logroId]
+      if (!key) return
+
+      byId.set(logroId, key)
+    })
+
+    const unlockedKeys = myAchievements
+      .map((item) => byId.get(String(item?.logroId || '')))
+      .filter(Boolean)
+
+    return new Set(unlockedKeys)
+  } catch (error) {
+    return new Set()
+  }
+}
+
+function getUnlockedKeysByRules(partidasJugadas = 0, elo = 0) {
+  const unlocked = []
+  if (partidasJugadas >= 1) unlocked.push('first-game')
+  if (partidasJugadas >= 5) unlocked.push('five-games')
+  if (partidasJugadas >= 10) unlocked.push('ten-games')
+  if (elo > 500) unlocked.push('score-over-500')
+  return unlocked
+}
+
+async function registerSudokuActivity(accessToken, nextScore, gameSession) {
+  if (!accessToken) return { recorded: false, newlyUnlockedAchievements: [] }
+
+  try {
+    const stats = await apiClient.getMyGameStats(accessToken, GAME_ID_SUDOKU)
+    const partidasJugadas = Number(stats?.partidasJugadas || 0) + 1
+    const elo = Number(stats?.elo || 0)
+
+    const byRules = getUnlockedKeysByRules(partidasJugadas, Math.max(elo, nextScore))
+    const remoteKeys = await loadAchievementsFromRemote(accessToken)
+    const allKeys = new Set([...byRules, ...remoteKeys])
+
+    const uniqueKeys = Array.from(allKeys)
+    const promises = uniqueKeys
+      .map((badgeKey) => {
+        const logroId = ACHIEVEMENT_ID_KEY_MAP[badgeKey]
+        if (!logroId) return null
+        return apiClient.unlockAchievement(accessToken, logroId).catch(() => null)
+      })
+      .filter(Boolean)
+
+    await Promise.all(promises)
+
+    return { recorded: true, newlyUnlockedAchievements: [] }
+  } catch (error) {
+    return { recorded: false, newlyUnlockedAchievements: [] }
+  }
+}
+
 function buildInviteLink(matchId, { inviteToken = '', tournamentId = '', difficultyKey = '' } = {}) {
   const basePath = `${import.meta.env.BASE_URL || '/'}pvp/${matchId}`
   const params = new URLSearchParams({ join: '1' })
@@ -90,6 +164,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
   const pollingInFlightRef = useRef(false)
   const selectedCellRef = useRef(null)
   const opponentFinishedRef = useRef(false)
+  const completionProcessedRef = useRef(false)
 
   const {
     puzzle,
@@ -363,6 +438,13 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
     setStatus('Tu rival termino su tablero. Completa el tuyo para cerrar la partida.', true)
   }, [opponent?.finished, setStatus])
 
+  useEffect(() => {
+    if (!match || match.estado !== 'FINISHED' || !myGame?.finished || completionProcessedRef.current) return
+
+    completionProcessedRef.current = true
+    handlePvpCompletion()
+  }, [match, myGame])
+
   async function handleCopyInviteLink() {
     try {
       await navigator.clipboard.writeText(inviteLink)
@@ -626,6 +708,28 @@ function PvpMatchPage() {
     }
 
     return { editable: true, message: '' }
+  async function handlePvpCompletion() {
+    if (!c1AccessToken) return
+
+    const score = myGame.score
+    const resultado = match.ganadorId === user.sub ? 'victoria' : 'derrota'
+    const xpGain = Math.max(1, Math.floor(score / 10))
+
+    try {
+      const gameSession = await apiClient.createGameSession(c1AccessToken, {
+        juegoId: GAME_ID_SUDOKU,
+        puntaje: score,
+        resultado,
+        cambioElo: 0,
+        tiempo: myGame.durationMs || 0,
+        seedId: null,
+        seed: match.seed,
+      })
+      await apiClient.addExperience(c1AccessToken, xpGain)
+      await registerSudokuActivity(c1AccessToken, score, gameSession)
+    } catch (error) {
+      console.warn('Error updating PvP stats:', error)
+    }
   }
 
   return (

@@ -9,10 +9,10 @@ const DEFAULT_PROFILE_TITLE = 'Titulo: "El dios de los números"'
 const GAME_ID_SUDOKU = 'uVsB-k2rjora'
 
 const ACHIEVEMENT_ID_KEY_MAP = {
-  jNVlXBxVZ4Ik: 'first-game',
   'jNVlXBxVZ4Ik': 'first-game',
   'eKdjK4OKd_qV': 'five-games',
   '_8uXFa1YZV-d': 'ten-games',
+  'pLHLX9-29oIY': 'score-over-500',
 }
 
 async function loadAchievementsFromRemote(accessToken) {
@@ -129,13 +129,13 @@ function ProfilePage() {
     })
   }, [isAuthenticated, user, session])
 
-  // Cargar datos completos del perfil desde la API
+  // Cargar logros desde la base de datos al iniciar sesión
   useEffect(() => {
     if (!isAuthenticated || !accessToken) {
       return
     }
 
-    loadProfileDataFromApi()
+    loadRemoteAchievements()
   }, [isAuthenticated, accessToken])
 
   // Cargar estadísticas del juego
@@ -164,6 +164,11 @@ function ProfilePage() {
     }
   }
 
+  const loadRemoteAchievements = async () => {
+    const remoteUnlocked = await loadAchievementsFromRemote(accessToken)
+    setUnlockedBadges(remoteUnlocked)
+  }
+
   const loadSudokuStats = async () => {
     setLoading(true)
     try {
@@ -186,11 +191,8 @@ function ProfilePage() {
         const frame = getFrameByElo(elo)
 
         const localUnlocked = new Set(getUnlockedKeysByRules(partidasJugadas, elo))
-        const remoteUnlocked = await loadAchievementsFromRemote(accessToken).catch((err) => {
-          return new Set()
-        })
 
-        const mergedUnlocked = new Set([...localUnlocked, ...Array.from(remoteUnlocked || [])])
+        setUnlockedBadges((prev) => new Set([...prev, ...localUnlocked]))
 
         setProfileModeStats((prev) => ({
           ...prev,
@@ -201,7 +203,6 @@ function ProfilePage() {
           ],
         }))
 
-        setUnlockedBadges(mergedUnlocked)
         setSelectedFrame(frame)
       }
     } catch (error) {
