@@ -1,26 +1,22 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { useAuth } from '../context/AuthContext.jsx'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { useState } from 'react'
+import { apiClient } from '../services/apiClient.js'
 
 const passwordPolicy = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$_-])[A-Za-z\d!@#$_-]{8,}$/
 
-function SignUpPage() {
-  const navigate = useNavigate()
-  const { signup, isAuthenticated } = useAuth()
-  const [form, setForm] = useState({
-    name: '',
-    email: '',
-    password: '',
+function ResetPasswordPage() {
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const [form, setForm] = useState(() => ({
+    token: String(location.state?.token || searchParams.get('token') || '').trim(),
+    newPassword: '',
     confirmPassword: '',
-  })
+  }))
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [message, setMessage] = useState('Escribe y confirma tu contrasena.')
+  const [message, setMessage] = useState(
+    'Pega el token recibido por correo y define una nueva contrasena segura.',
+  )
   const [tone, setTone] = useState('info')
-
-  useEffect(() => {
-    if (!isAuthenticated) return
-    navigate('/', { replace: true })
-  }, [isAuthenticated, navigate])
 
   function handleChange(event) {
     const { name, value } = event.target
@@ -28,15 +24,15 @@ function SignUpPage() {
   }
 
   function validateForm() {
-    if (!form.name.trim() || !form.email.trim() || !form.password || !form.confirmPassword) {
-      return 'Completa todos los campos del registro.'
+    if (!form.token.trim() || !form.newPassword || !form.confirmPassword) {
+      return 'Completa el token, la nueva contrasena y su confirmacion.'
     }
 
-    if (!passwordPolicy.test(form.password)) {
+    if (!passwordPolicy.test(form.newPassword)) {
       return 'La contrasena debe tener minimo 8 caracteres, mayuscula, numero y simbolo.'
     }
 
-    if (form.password !== form.confirmPassword) {
+    if (form.newPassword !== form.confirmPassword) {
       return 'Las contrasenas no coinciden.'
     }
 
@@ -56,31 +52,23 @@ function SignUpPage() {
 
     setIsSubmitting(true)
     setTone('info')
-    setMessage('Creando cuenta...')
+    setMessage('Actualizando contrasena...')
 
     try {
-      const normalizedEmail = form.email.trim().toLowerCase()
-      const result = await signup({
-        name: form.name.trim(),
-        email: normalizedEmail,
-        password: form.password,
+      await apiClient.resetPassword({
+        token: form.token.trim(),
+        newPassword: form.newPassword,
       })
-
-      if (result.session) {
-        navigate('/', { replace: true })
-        return
-      }
-
-      navigate(`/verify-email?email=${encodeURIComponent(normalizedEmail)}`, {
-        replace: true,
-        state: {
-          message:
-            'Cuenta creada. Revisa tu correo, copia el codigo y valida tu cuenta para poder iniciar sesion.',
-        },
-      })
+      setTone('success')
+      setMessage('Contrasena actualizada. Ya puedes iniciar sesion con tu nueva clave.')
+      setForm((current) => ({
+        ...current,
+        newPassword: '',
+        confirmPassword: '',
+      }))
     } catch (error) {
       setTone('error')
-      setMessage(error instanceof Error ? error.message : 'No fue posible crear la cuenta.')
+      setMessage(error instanceof Error ? error.message : 'No fue posible restablecer la contrasena.')
     } finally {
       setIsSubmitting(false)
     }
@@ -90,7 +78,7 @@ function SignUpPage() {
     <main>
       <section className="auth-page">
         <div className="auth-page-header">
-          <h1>Crear cuenta</h1>
+          <h1>Restablecer contrasena</h1>
         </div>
 
         <div className="auth-shell">
@@ -99,55 +87,53 @@ function SignUpPage() {
               <Link className="auth-tab" to="/login">
                 Iniciar sesion
               </Link>
+              <Link className="auth-tab" to="/forgot-password">
+                Recuperar acceso
+              </Link>
               <button className="auth-tab active" type="button">
-                Crear cuenta
+                Nueva contrasena
               </button>
             </div>
 
+            <p className="auth-copy">
+              Si abriste un enlace desde tu correo y trae el token en la URL, lo dejamos precargado
+              para que solo tengas que escribir la nueva clave.
+            </p>
+
             <form className="auth-form" onSubmit={handleSubmit}>
               <label className="auth-field">
-                <span>Nombre de usuario</span>
+                <span>Token de recuperacion</span>
                 <input
-                  autoComplete="username"
-                  name="name"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  name="token"
                   onChange={handleChange}
-                  placeholder="Tu nombre"
+                  placeholder="Pega el token recibido"
+                  spellCheck="false"
                   type="text"
-                  value={form.name}
+                  value={form.token}
                 />
               </label>
 
               <label className="auth-field">
-                <span>Correo</span>
-                <input
-                  autoComplete="email"
-                  name="email"
-                  onChange={handleChange}
-                  placeholder="correo@ejemplo.com"
-                  type="email"
-                  value={form.email}
-                />
-              </label>
-
-              <label className="auth-field">
-                <span>Contrasena</span>
+                <span>Nueva contrasena</span>
                 <input
                   autoComplete="new-password"
-                  name="password"
+                  name="newPassword"
                   onChange={handleChange}
                   placeholder="Minimo 8 caracteres, una mayuscula y un simbolo"
                   type="password"
-                  value={form.password}
+                  value={form.newPassword}
                 />
               </label>
 
               <label className="auth-field">
-                <span>Confirmar contrasena</span>
+                <span>Confirmar nueva contrasena</span>
                 <input
                   autoComplete="new-password"
                   name="confirmPassword"
                   onChange={handleChange}
-                  placeholder="Repite tu contrasena"
+                  placeholder="Repite tu nueva contrasena"
                   type="password"
                   value={form.confirmPassword}
                 />
@@ -158,16 +144,16 @@ function SignUpPage() {
               </p>
 
               <button className="btn primary auth-submit" disabled={isSubmitting} type="submit">
-                {isSubmitting ? 'Creando...' : 'Crear cuenta'}
+                {isSubmitting ? 'Actualizando...' : 'Guardar nueva contrasena'}
               </button>
             </form>
 
             <p className="auth-links">
-              Ya tienes cuenta? <Link to="/login">Iniciar sesion</Link>
+              Aun no tienes token? <Link to="/forgot-password">Solicitar recuperacion</Link>
             </p>
 
             <p className="auth-links">
-              Ya tienes un codigo? <Link to="/verify-email">Verificar correo</Link>
+              Ya quedo lista tu clave? <Link to="/login">Volver al login</Link>
             </p>
           </article>
         </div>
@@ -176,4 +162,4 @@ function SignUpPage() {
   )
 }
 
-export default SignUpPage
+export default ResetPasswordPage

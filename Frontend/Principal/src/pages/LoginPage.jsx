@@ -109,6 +109,14 @@ function LoginPage() {
             <p className={`auth-feedback${tone !== 'info' ? ` ${tone}` : ''}`}>{message || ' '}</p>
 
             <p className="auth-links">
+              Olvidaste tu contrasena? <Link to="/forgot-password">Recuperarla</Link>
+            </p>
+
+            <p className="auth-links">
+              Tienes un codigo de verificacion? <Link to="/verify-email">Validar correo</Link>
+            </p>
+
+            <p className="auth-links">
               No tienes cuenta? <Link to="/signup">Crear cuenta</Link>
             </p>
           </article>

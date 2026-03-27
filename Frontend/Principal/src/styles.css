@@ -532,6 +532,12 @@ main,
   color: var(--muted);
 }
 
+.auth-copy {
+  margin: 0 0 1.2rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .auth-field input {
   width: 100%;
   border: 1px solid var(--border);
