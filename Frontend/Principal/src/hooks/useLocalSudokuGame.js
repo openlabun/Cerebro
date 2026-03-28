@@ -230,7 +230,7 @@ export function useLocalSudokuGame() {
 
       achievementCatalogRef.current = map
     } catch (error) {
-      console.warn('No se pudo cargar el catalogo de logros:', error)
+      console.warn('No se pudo cargar el catálogo de logros:', error)
     }
   }
 
@@ -347,7 +347,7 @@ export function useLocalSudokuGame() {
     } catch (error) {
       console.warn('Error registrando actividad de Sudoku:', error)
       if (isVerified === false) {
-        setStatus(`No se pudo sincronizar tu progreso porque la cuenta ${user?.email || 'actual'} no esta verificada.`)
+        setStatus(`No se pudo sincronizar tu progreso porque la cuenta ${user?.email || 'actual'} no está verificada.`)
       }
       return { recorded: false, newlyUnlockedAchievements: [] }
     }
@@ -448,11 +448,11 @@ export function useLocalSudokuGame() {
       await apiClient.addExperience(accessToken, xpGain)
       persistenceOk = true
     } catch (error) {
-      console.warn('No se pudo persistir la sesion de Sudoku:', error)
+      console.warn('No se pudo persistir la sesión de Sudoku:', error)
       if (error?.status === 401) {
-        setStatus('No se pudo guardar la partida porque tu sesion expiro. Intenta iniciar sesion de nuevo.')
+        setStatus('No se pudo guardar la partida porque tu sesión expiró. Intenta iniciar sesión de nuevo.')
       } else if (isVerified === false) {
-        setStatus(`No se pudo sincronizar puntaje, XP o ELO porque la cuenta ${user?.email || 'actual'} no esta verificada.`)
+        setStatus(`No se pudo sincronizar puntaje, XP o ELO porque la cuenta ${user?.email || 'actual'} no está verificada.`)
       } else {
         setStatus('No se pudo sincronizar la partida en este momento. Intenta de nuevo en unos segundos.')
       }
@@ -623,7 +623,7 @@ export function useLocalSudokuGame() {
     }
 
     if (hintsUsed >= hintLimit) {
-      setStatus(`Ya alcanzaste el limite de ${hintLimit} pista(s) para esta dificultad.`)
+      setStatus(`Ya alcanzaste el límite de ${hintLimit} pista(s) para esta dificultad.`)
       return
     }
 

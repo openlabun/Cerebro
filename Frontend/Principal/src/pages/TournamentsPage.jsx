@@ -164,7 +164,7 @@ function TournamentsPage() {
           </div>
         </div>
 
-        <p className="mode-copy">{tournament.descripcion || 'Sin descripcion.'}</p>
+        <p className="mode-copy">{tournament.descripcion || 'Sin descripción.'}</p>
 
         <dl className="tournament-meta-list">
           <div>
@@ -212,7 +212,7 @@ function TournamentsPage() {
                   )
                 }
               >
-                Copiar codigo
+                Copiar código
               </button>
               <button
                 className="btn ghost"
@@ -220,11 +220,11 @@ function TournamentsPage() {
                 onClick={() =>
                   handleCopyValue(
                     buildTournamentInviteLink(tournament._id, tournament.codigoAcceso),
-                    'Enlace de invitacion copiado al portapapeles.',
+                    'Enlace de invitación copiado al portapapeles.',
                   )
                 }
               >
-                Copiar invitacion
+                Copiar invitación
               </button>
             </div>
           </div>
@@ -283,7 +283,7 @@ function TournamentsPage() {
           <p className="eyebrow">Tus torneos</p>
           <h1>Organiza competencias desde la misma app</h1>
           <p className="lead">
-            Consulta solo los torneos programados y activos, separa rapido los tuyos, los que ya
+            Consulta solo los torneos programados y activos, separa rápido los tuyos, los que ya
             jugas y el resto del panel.
           </p>
         </div>
@@ -305,7 +305,7 @@ function TournamentsPage() {
               ? creationOpen
                 ? 'Ocultar formulario'
                 : 'Crear torneo'
-              : 'Iniciar sesion para crear'}
+              : 'Iniciar sesión para crear'}
           </button>
           <button className="btn ghost" type="button" onClick={loadTournaments} disabled={loading}>
             {loading ? 'Actualizando...' : 'Actualizar lista'}
@@ -318,11 +318,11 @@ function TournamentsPage() {
           <div className="section-heading tournament-panel-heading">
             <div>
               <p className="section-kicker">Explora libremente</p>
-              <h2>Puedes navegar los torneos sin iniciar sesion</h2>
+              <h2>Puedes navegar los torneos sin iniciar sesión</h2>
             </div>
           </div>
           <p className="mode-copy">
-            Para crear un torneo o unirte a uno, primero debes iniciar sesion.
+            Para crear un torneo o unirte a uno, primero debes iniciar sesión.
           </p>
         </section>
       ) : null}
@@ -332,11 +332,11 @@ function TournamentsPage() {
           <div className="section-heading tournament-panel-heading">
             <div>
               <p className="section-kicker">Acceso restringido</p>
-              <h2>Debes iniciar sesion para ver los torneos en este entorno</h2>
+              <h2>Debes iniciar sesión para ver los torneos en este entorno</h2>
             </div>
           </div>
           <p className="mode-copy">
-            La lectura publica no esta configurada todavia. Si entras con tu cuenta, podras ver los
+            La lectura pública no está configurada todavía. Si entras con tu cuenta, podrás ver los
             torneos disponibles y administrar los tuyos.
           </p>
           <div className="tournament-card-actions">
@@ -345,7 +345,7 @@ function TournamentsPage() {
               type="button"
               onClick={() => navigate('/login', { state: { from: { pathname: '/torneos' } } })}
             >
-              Iniciar sesion
+              Iniciar sesión
             </button>
           </div>
         </section>
@@ -386,7 +386,7 @@ function TournamentsPage() {
                 type="search"
                 value={filters.search}
                 onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-                placeholder="Nombre o descripcion"
+                placeholder="Nombre o descripción"
               />
             </label>
 
@@ -443,7 +443,7 @@ function TournamentsPage() {
       {loading ? (
         <section className="board-card tournament-empty">
           <h3>Cargando torneos...</h3>
-          <p>Traemos la informacion mas reciente para que puedas administrarla.</p>
+          <p>Traemos la información más reciente para que puedas administrarla.</p>
         </section>
       ) : null}
 
@@ -455,19 +455,19 @@ function TournamentsPage() {
                 title: 'Torneos oficiales',
                 kicker: 'Prioridad',
                 rows: officialTournaments,
-                emptyTitle: 'Aun no hay torneos oficiales visibles',
-                emptyText: 'Cuando administracion publique uno, aparecera primero aqui.',
+                emptyTitle: 'Aún no hay torneos oficiales visibles',
+                emptyText: 'Cuando administración publique uno, aparecerá primero aquí.',
                 panelClassName: 'tournament-column-panel--wide',
               })
             : null}
 
           {renderTournamentSection({
             sectionKey: 'joined',
-            title: 'Torneos donde estas inscrito',
+            title: 'Torneos donde estás inscrito',
             kicker: 'Inscripciones',
             rows: joinedTournaments,
-            emptyTitle: 'Aun no tienes inscripciones',
-            emptyText: 'Cuando te unas a un torneo activo o programado, aparecera aqui.',
+            emptyTitle: 'Aún no tienes inscripciones',
+            emptyText: 'Cuando te unas a un torneo activo o programado, aparecerá aquí.',
             panelClassName: 'tournament-column-panel--wide',
           })}
 
@@ -475,7 +475,7 @@ function TournamentsPage() {
             {renderTournamentSection({
               sectionKey: 'mine',
               title: 'Torneos propios',
-              kicker: 'Gestion',
+              kicker: 'Gestión',
               rows: ownTournaments,
               emptyTitle: 'No tienes torneos visibles',
               emptyText: 'Crea uno nuevo o programa uno para que aparezca en tu panel.',
@@ -483,10 +483,10 @@ function TournamentsPage() {
 
             {renderTournamentSection({
               sectionKey: 'others',
-              title: 'Demas torneos',
+              title: 'Demás torneos',
               kicker: 'Explorar',
               rows: otherTournaments,
-              emptyTitle: 'No hay mas torneos con este filtro',
+              emptyTitle: 'No hay más torneos con este filtro',
               emptyText: 'Prueba quitando filtros o espera nuevos torneos activos o programados.',
             })}
           </div>
@@ -501,8 +501,8 @@ function TournamentsPage() {
                 title: 'Torneos oficiales',
                 kicker: 'Prioridad',
                 rows: officialTournaments,
-                emptyTitle: 'Aun no hay torneos oficiales visibles',
-                emptyText: 'Cuando administracion publique uno, aparecera primero aqui.',
+                emptyTitle: 'Aún no hay torneos oficiales visibles',
+                emptyText: 'Cuando administración publique uno, aparecerá primero aquí.',
                 panelClassName: 'tournament-column-panel--wide',
               })
             : null}
@@ -514,7 +514,7 @@ function TournamentsPage() {
               kicker: 'Explorar',
               rows: otherTournaments,
               emptyTitle: 'No hay torneos con este filtro',
-              emptyText: 'Prueba cambiando los filtros o vuelve mas tarde.',
+              emptyText: 'Prueba cambiando los filtros o vuelve más tarde.',
             })}
           </section>
         </section>

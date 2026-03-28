@@ -7,8 +7,8 @@ import { difficultyLevels, getDifficultyByKey, getHintLimit } from '../lib/sudok
 import { apiClient } from '../services/apiClient.js'
 
 const pvpFeatures = [
-  'El host crea una sala y recibe un codigo corto.',
-  'El invitado se une escribiendo ese codigo desde esta misma pantalla.',
+  'El host crea una sala y recibe un código corto.',
+  'El invitado se une escribiendo ese código desde esta misma pantalla.',
   'Ambos resuelven el mismo sudoku y gana quien termine primero.',
 ]
 
@@ -43,7 +43,7 @@ function SimulationPage() {
 
   async function handleCreateMatch() {
     if (!session?.c2AccessToken) {
-      setStatus('No hay sesion activa para crear la partida.')
+      setStatus('No hay sesión activa para crear la partida.')
       return
     }
 
@@ -65,12 +65,12 @@ function SimulationPage() {
 
   async function handleJoinByCode() {
     if (!session?.c2AccessToken) {
-      setStatus('No hay sesion activa para unirte a la partida.')
+      setStatus('No hay sesión activa para unirte a la partida.')
       return
     }
 
     if (normalizedJoinCode.length < 4) {
-      setStatus('Ingresa un codigo PvP valido de 4 o 5 digitos.')
+      setStatus('Ingresa un código PvP válido de 4 o 5 dígitos.')
       return
     }
 
@@ -84,7 +84,7 @@ function SimulationPage() {
       )
       navigate(`/pvp/${joined._id}`, { replace: true })
     } catch (error) {
-      setStatus(error.message || 'No se pudo encontrar una partida con ese codigo.')
+      setStatus(error.message || 'No se pudo encontrar una partida con ese código.')
     } finally {
       setJoining(false)
     }
@@ -99,7 +99,7 @@ function SimulationPage() {
           <div className="simulation-copy">
             <h1 className="simulation-title">Reta a otro jugador</h1>
             <p className="simulation-description">
-              Ambos resuelven el mismo sudoku. Gana quien termine primero con mejor precision.
+              Ambos resuelven el mismo sudoku. Gana quien termine primero con mejor precisión.
             </p>
           </div>
 
@@ -112,7 +112,7 @@ function SimulationPage() {
           <div className="simulation-pvp-layout">
             <section className="simulation-pvp-panel">
               <p className="section-kicker">Crear sala</p>
-              <h2 className="simulation-subtitle">Tu tablero, tu codigo</h2>
+              <h2 className="simulation-subtitle">Tu tablero, tu código</h2>
               <div className="difficulty-wrap">
                 <label htmlFor="pvp-difficulty-select">Dificultad:</label>
                 <DifficultySelect
@@ -139,14 +139,14 @@ function SimulationPage() {
             </section>
 
             <section className="simulation-pvp-panel simulation-pvp-panel--join">
-              <p className="section-kicker">Unirse rapido</p>
-              <h2 className="simulation-subtitle">Ingresa el codigo del host</h2>
+              <p className="section-kicker">Unirse rápido</p>
+              <h2 className="simulation-subtitle">Ingresa el código del host</h2>
               <p className="simulation-panel-copy">
-                Escribe el codigo que te compartieron para unirte a la partida.
+                Escribe el código que te compartieron para unirte a la partida.
               </p>
 
               <label className="simulation-field" htmlFor="pvp-join-code">
-                <span>Codigo PvP</span>
+                <span>Código PvP</span>
                 <input
                   id="pvp-join-code"
                   className="simulation-code-input"
@@ -173,7 +173,7 @@ function SimulationPage() {
                 disabled={creating || joining || normalizedJoinCode.length < 4}
                 onClick={handleJoinByCode}
               >
-                {joining ? 'Uniendote...' : 'Unirme con codigo'}
+                {joining ? 'Uniéndote...' : 'Unirme con código'}
               </button>
             </section>
           </div>

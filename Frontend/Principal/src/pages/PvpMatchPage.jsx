@@ -227,7 +227,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       if (shouldAutoJoin && !requestedInviteToken && !requestedTournamentId) {
         if (mounted) {
           setLoading(false)
-          setStatus('Este enlace de invitacion no es valido.')
+          setStatus('Este enlace de invitación no es válido.')
         }
         return
       }
@@ -238,7 +238,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
         if (shouldAutoJoin) {
           if (requestedTournamentId) {
             if (!c1AccessToken) {
-              throw new Error('No hay sesion principal disponible para unirse a este match.')
+              throw new Error('No hay sesión principal disponible para unirse a este match.')
             }
             await ensureTournamentJoined(requestedTournamentId)
             await apiClient.joinPvpMatch(
@@ -279,7 +279,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
             setStatus(
               joinedMatch.estado === 'ACTIVE'
                 ? 'Partida activa. Ya puedes comenzar a jugar.'
-                : 'Rival unido. Esperando sincronizacion del match.',
+                : 'Rival unido. Esperando sincronización del match.',
               true,
             )
             return
@@ -394,7 +394,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
   useEffect(() => {
     if (!match || redirectScheduled) return
     if (match.estado === 'FORFEIT') {
-      scheduleHomeRedirect('La partida termino por abandono. Volviendo al inicio...', 250)
+      scheduleHomeRedirect('La partida terminó por abandono. Volviendo al inicio...', 250)
       return
     }
     if (match.estado !== 'FINISHED' || winnerModalShownRef.current) return
@@ -427,7 +427,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
 
   async function handleCopyJoinCode() {
     if (!joinCode) {
-      setStatus('Todavia no hay un codigo disponible para compartir.')
+      setStatus('Todavía no hay un código disponible para compartir.')
       return
     }
 
@@ -435,7 +435,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       await navigator.clipboard.writeText(joinCode)
       setStatus('Codigo PvP copiado al portapapeles.', true)
     } catch {
-      setStatus('No se pudo copiar el codigo. Compartelo manualmente.')
+      setStatus('No se pudo copiar el código. Compártelo manualmente.')
     }
   }
 
@@ -508,7 +508,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
         setStatus(
           result?.ganadorId === currentUserId
             ? 'Completaste tu tablero primero. Confirmando victoria...'
-            : 'La partida termino. Confirmando resultado final...',
+            : 'La partida terminó. Confirmando resultado final...',
           result?.ganadorId === currentUserId,
         )
       } else {
@@ -552,12 +552,12 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
 
   function handleHintUnavailable() {
     if (!difficulty) {
-      setStatus('Las pistas no estan disponibles en PvP.')
+      setStatus('Las pistas no están disponibles en PvP.')
       return
     }
 
     setStatus(
-      `Las pistas no estan disponibles en PvP. En single player, ${difficulty.label} permite ${hintLimit} pista(s).`,
+      `Las pistas no están disponibles en PvP. En single player, ${difficulty.label} permite ${hintLimit} pista(s).`,
     )
   }
   const editableCellCount = useMemo(() => countEditableCells(puzzle), [puzzle])
@@ -618,9 +618,9 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
               <h2>Esperando rival</h2>
               {!tournamentId ? (
                 <>
-                  <p>Comparte este codigo para que otro jugador lo escriba en su pagina PvP.</p>
+                  <p>Comparte este código para que otro jugador lo escriba en su página PvP.</p>
                   <p>
-                    Tablero configurado en {difficulty?.label || 'dificultad clasica'}.
+                    Tablero configurado en {difficulty?.label || 'dificultad clásica'}.
                     {difficulty ? ` En single player permite ${hintLimit} pista(s).` : ''}
                   </p>
                   <div className="pvp-code-box" aria-live="polite">
@@ -629,7 +629,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
                   </div>
                   <div className="controls">
                     <button className="btn primary" type="button" onClick={handleCopyJoinCode}>
-                      Copiar codigo
+                      Copiar código
                     </button>
                   </div>
                 </>
@@ -637,7 +637,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
                 <>
                   <p>La partida pertenece a un torneo. Espera a que el rival entre desde el flujo del torneo.</p>
                   <p>
-                    Tablero configurado en {difficulty?.label || 'dificultad clasica'}.
+                    Tablero configurado en {difficulty?.label || 'dificultad clásica'}.
                     {difficulty ? ` En single player permite ${hintLimit} pista(s).` : ''}
                   </p>
                 </>

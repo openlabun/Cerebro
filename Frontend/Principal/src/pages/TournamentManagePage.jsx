@@ -224,7 +224,7 @@ function TournamentManagePage() {
       <main className="tournaments-page">
         <section className="board-card tournament-empty">
           <h2>Cargando detalle del torneo...</h2>
-          <p>Estamos recuperando participantes, ranking y configuracion actual.</p>
+          <p>Estamos recuperando participantes, ranking y configuración actual.</p>
         </section>
       </main>
     )
@@ -234,17 +234,17 @@ function TournamentManagePage() {
     return (
       <main className="tournaments-page">
         <section className="board-card tournament-empty">
-          <h2>Esta invitacion privada requiere sesion</h2>
+          <h2>Esta invitación privada requiere sesión</h2>
           <p>
-            Te compartieron un enlace con codigo precargado. Inicia sesion y volveremos a este
-            torneo para que puedas unirte sin perder la invitacion.
+            Te compartieron un enlace con código precargado. Inicia sesión y volveremos a este
+            torneo para que puedas unirte sin perder la invitación.
           </p>
           <button
             className="btn primary"
             type="button"
             onClick={() => navigate('/login', { state: { from: loginTarget } })}
           >
-            Iniciar sesion
+            Iniciar sesión
           </button>
         </section>
       </main>
@@ -258,8 +258,8 @@ function TournamentManagePage() {
           <section className="board-card tournament-empty">
             <h2>Invitacion privada detectada</h2>
             <p>
-              No podemos mostrar el detalle todavia, pero si tienes acceso puedes unirte con el
-              codigo precargado y luego abrir el torneo normalmente.
+              No podemos mostrar el detalle todavía, pero si tienes acceso puedes unirte con el
+              código precargado y luego abrir el torneo normalmente.
             </p>
             <div className="tournament-join-box tournament-join-box--narrow">
               <label className="auth-field">
@@ -268,12 +268,12 @@ function TournamentManagePage() {
                   type="text"
                   value={joinCode}
                   onChange={(event) => setJoinCode(event.target.value)}
-                  placeholder="Ingresa el codigo"
+                  placeholder="Ingresa el código"
                   disabled={actionBusy}
                 />
               </label>
               <button className="btn primary" type="button" disabled={actionBusy} onClick={handleJoinTournament}>
-                {actionBusy ? 'Uniendote...' : 'Unirme con este codigo'}
+                {actionBusy ? 'Uniéndote...' : 'Unirme con este código'}
               </button>
               <Link className="btn ghost" to="/torneos">
                 Volver al panel
@@ -305,9 +305,9 @@ function TournamentManagePage() {
           <Link className="tournament-back-link" to="/torneos">
             Volver a torneos
           </Link>
-          <p className="eyebrow">Gestion de torneo</p>
+          <p className="eyebrow">Gestión de torneo</p>
           <h1>{tournament?.nombre || 'Torneo sin nombre'}</h1>
-          <p className="lead">{tournament?.descripcion || 'Sin descripcion.'}</p>
+          <p className="lead">{tournament?.descripcion || 'Sin descripción.'}</p>
 
           <div className="tournament-badge-row">
             {isOfficialTournament(tournament) ? (
@@ -360,7 +360,7 @@ function TournamentManagePage() {
                     )
                   }
                 >
-                  Copiar codigo
+                  Copiar código
                 </button>
                 <button
                   className="btn ghost"
@@ -368,11 +368,11 @@ function TournamentManagePage() {
                   onClick={() =>
                     handleCopyValue(
                       inviteLink,
-                      'Enlace de invitacion copiado al portapapeles.',
+                      'Enlace de invitación copiado al portapapeles.',
                     )
                   }
                 >
-                  Copiar invitacion
+                  Copiar invitación
                 </button>
               </div>
             </div>
@@ -435,7 +435,7 @@ function TournamentManagePage() {
           <div className="section-heading tournament-panel-heading">
             <div>
               <p className="section-kicker">Acciones</p>
-              <h2>{isManager ? 'Administra el torneo' : 'Participacion'}</h2>
+              <h2>{isManager ? 'Administra el torneo' : 'Participación'}</h2>
             </div>
           </div>
 
@@ -486,14 +486,14 @@ function TournamentManagePage() {
             <>
               <p className="mode-copy">
                 Puedes revisar este torneo libremente. Para unirte o crear el tuyo, necesitas iniciar
-                sesion.
+                sesión.
               </p>
               <button
                 className="btn primary"
                 type="button"
                 onClick={() => navigate('/login', { state: { from: loginTarget } })}
               >
-                Iniciar sesion
+                Iniciar sesión
               </button>
             </>
           ) : (
@@ -524,20 +524,20 @@ function TournamentManagePage() {
                           type="text"
                           value={joinCode}
                           onChange={(event) => setJoinCode(event.target.value)}
-                          placeholder="Ingresa el codigo"
+                          placeholder="Ingresa el código"
                           disabled={actionBusy}
                         />
                       </label>
                       <p className="status">
                         {inviteCodeFromQuery
-                          ? 'Abriste una invitacion privada: el codigo ya viene precargado.'
-                          : 'Pide al creador el codigo o el enlace de invitacion para poder unirte.'}
+                          ? 'Abriste una invitación privada: el código ya viene precargado.'
+                          : 'Pide al creador el código o el enlace de invitación para poder unirte.'}
                       </p>
                     </>
                   ) : null}
 
                   <button className="btn primary" type="button" disabled={actionBusy} onClick={handleJoinTournament}>
-                    {actionBusy ? 'Uniendote...' : 'Unirme al torneo'}
+                    {actionBusy ? 'Uniéndote...' : 'Unirme al torneo'}
                   </button>
                 </div>
               )}
@@ -562,7 +562,7 @@ function TournamentManagePage() {
                 <thead>
                   <tr>
                     <th>Usuario</th>
-                    <th>Fecha de union</th>
+                    <th>Fecha de unión</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -577,8 +577,8 @@ function TournamentManagePage() {
             </div>
           ) : (
             <div className="tournament-empty tournament-empty--compact">
-              <h3>Aun no hay inscripciones</h3>
-              <p>Cuando un jugador se una al torneo, aparecera listado aqui.</p>
+              <h3>Aún no hay inscripciones</h3>
+              <p>Cuando un jugador se una al torneo, aparecerá listado aquí.</p>
             </div>
           )}
         </article>
@@ -619,8 +619,8 @@ function TournamentManagePage() {
             </div>
           ) : (
             <div className="tournament-empty tournament-empty--compact">
-              <h3>No hay resultados todavia</h3>
-              <p>El ranking aparecera automaticamente cuando se registren puntajes.</p>
+              <h3>No hay resultados todavía</h3>
+              <p>El ranking aparecerá automáticamente cuando se registren puntajes.</p>
             </div>
           )}
         </article>

@@ -120,6 +120,7 @@ nav {
   color: var(--primary-dark);
   border-radius: 999px;
   padding: 0.45rem 0.9rem;
+  font: inherit;
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
@@ -192,6 +193,7 @@ main,
   border: 0;
   border-radius: 12px;
   padding: 0.72rem 1.1rem;
+  font: inherit;
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
@@ -668,7 +670,9 @@ main,
 
 .sudoku-page-title {
   margin: 0;
+  font-family: inherit;
   font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 700;
 }
 
 .sudoku-game-card {
@@ -935,6 +939,12 @@ main,
   border-radius: 14px;
   padding: 0.6rem 1.1rem;
   font-weight: 700;
+}
+
+:root[data-theme='dark'] .sudoku-game-card .btn-pause {
+  background: color-mix(in srgb, var(--surface) 82%, #ffffff 18%);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+  color: #ffffff;
 }
 
 .sudoku-main {
@@ -1382,7 +1392,10 @@ main,
 
 @media (max-width: 930px) {
   nav {
-    display: none;
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .hero,
@@ -1419,6 +1432,18 @@ main,
 }
 
 @media (max-width: 640px) {
+  .topbar {
+    justify-content: center;
+  }
+
+  nav {
+    gap: 0.5rem;
+  }
+
+  .nav-btn {
+    text-align: center;
+  }
+
   .auth-page-header {
     align-items: flex-start;
     flex-direction: column;
@@ -1435,6 +1460,10 @@ main,
   .game-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .session-actions {
+    justify-content: center;
   }
 
   .sudoku-main {

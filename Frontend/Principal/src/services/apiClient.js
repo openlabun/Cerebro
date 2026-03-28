@@ -30,11 +30,11 @@ function parseResponse(text) {
 
 function getFriendlyStatusMessage(status) {
   if (status === 401) {
-    return 'Tu sesion no es valida o expiro. Inicia sesion nuevamente.'
+    return 'Tu sesión no es válida o expiró. Inicia sesión nuevamente.'
   }
 
   if (status === 403) {
-    return 'La solicitud fue rechazada por el servicio (403). Si estabas iniciando sesion, revisa tu red, VPN o filtros de seguridad.'
+    return 'La solicitud fue rechazada por el servicio (403). Si estabas iniciando sesión, revisa tu red, VPN o filtros de seguridad.'
   }
 
   if (status === 502 || status === 503 || status === 504) {

@@ -126,7 +126,7 @@ function SudokuPageContent() {
         <div className="sudoku-pause-overlay" role="dialog" aria-modal="true">
           <div className="sudoku-pause-card">
             <h3 className="sudoku-pause-title">Juego en pausa</h3>
-            <p className="sudoku-pause-text">El tiempo esta detenido. Presiona reanudar para continuar.</p>
+            <p className="sudoku-pause-text">El tiempo está detenido. Presiona reanudar para continuar.</p>
             <button className="btn primary sudoku-pause-resume-btn" type="button" onClick={() => setPaused(false)}>
               Reanudar
             </button>

@@ -86,7 +86,7 @@ function TournamentSudokuPageContent() {
       <main className="tournaments-page">
         <section className="board-card tournament-empty">
           <h2>Preparando partida de torneo...</h2>
-          <p>Estamos validando tu inscripcion y cargando la configuracion oficial.</p>
+          <p>Estamos validando tu inscripción y cargando la configuración oficial.</p>
         </section>
       </main>
     )

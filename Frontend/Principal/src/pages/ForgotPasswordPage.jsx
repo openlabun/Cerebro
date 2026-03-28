@@ -7,7 +7,7 @@ function ForgotPasswordPage() {
   const [email, setEmail] = useState(() => String(searchParams.get('email') || '').trim())
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState(
-    'Escribe tu correo y te ayudaremos a iniciar el proceso de recuperacion.',
+    'Escribe tu correo y te ayudaremos a iniciar el proceso de recuperación.',
   )
   const [tone, setTone] = useState('info')
 
@@ -23,17 +23,17 @@ function ForgotPasswordPage() {
 
     setIsSubmitting(true)
     setTone('info')
-    setMessage('Solicitando recuperacion...')
+    setMessage('Solicitando recuperación...')
 
     try {
       await apiClient.forgotPassword({ email: email.trim().toLowerCase() })
       setTone('success')
       setMessage(
-        'Si el correo existe, revisa tu bandeja y sigue las instrucciones para recuperar tu contrasena.',
+        'Si el correo existe, revisa tu bandeja y sigue las instrucciones para recuperar tu contraseña.',
       )
     } catch (error) {
       setTone('error')
-      setMessage(error instanceof Error ? error.message : 'No fue posible iniciar la recuperacion.')
+      setMessage(error instanceof Error ? error.message : 'No fue posible iniciar la recuperación.')
     } finally {
       setIsSubmitting(false)
     }
@@ -43,14 +43,14 @@ function ForgotPasswordPage() {
     <main>
       <section className="auth-page">
         <div className="auth-page-header">
-          <h1>Recuperar contrasena</h1>
+          <h1>Recuperar contraseña</h1>
         </div>
 
         <div className="auth-shell">
           <article className="auth-card">
             <div className="auth-tabs">
               <Link className="auth-tab" to="/login">
-                Iniciar sesion
+                Iniciar sesión
               </Link>
               <Link className="auth-tab" to="/signup">
                 Crear cuenta
@@ -91,7 +91,7 @@ function ForgotPasswordPage() {
             </form>
 
             <p className="auth-links">
-              Ya tienes el token? <Link to="/reset-password">Restablecer contrasena</Link>
+              Ya tienes el token? <Link to="/reset-password">Restablecer contraseña</Link>
             </p>
 
             <p className="auth-links">

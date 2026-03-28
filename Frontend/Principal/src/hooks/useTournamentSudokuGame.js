@@ -267,7 +267,7 @@ export function useTournamentSudokuGame({ tournamentId, accessToken }) {
   async function loadTournamentSession() {
     if (!tournamentId || !accessToken) {
       setLoading(false)
-      setPageError('Necesitas una sesion valida para jugar este torneo.')
+      setPageError('Necesitas una sesión válida para jugar este torneo.')
       return
     }
 
@@ -286,7 +286,7 @@ export function useTournamentSudokuGame({ tournamentId, accessToken }) {
       const nextGame = payload?.game || null
 
       if (!nextTournament || !nextSession || !nextGame) {
-        throw new Error('La respuesta del backend no trajo la sesion del torneo.')
+        throw new Error('La respuesta del backend no trajo la sesión del torneo.')
       }
 
       const baseSeriesBoards = buildSeriesBoards(nextGame, nextSession)
@@ -336,11 +336,11 @@ export function useTournamentSudokuGame({ tournamentId, accessToken }) {
         payload?.resumed
           ? snapshot?.boards?.length
             ? 'Retomaste tu serie activa del torneo.'
-            : 'Recuperamos tu sesion activa. La serie reinicio desde su estado base porque no habia progreso local guardado.'
-          : 'Sesion de torneo iniciada. Completa toda la serie oficial antes de que se agote el tiempo.',
+            : 'Recuperamos tu sesión activa. La serie reinició desde su estado base porque no había progreso local guardado.'
+          : 'Sesión de torneo iniciada. Completa toda la serie oficial antes de que se agote el tiempo.',
       )
     } catch (error) {
-      setPageError(error.message || 'No se pudo iniciar la sesion del torneo.')
+      setPageError(error.message || 'No se pudo iniciar la sesión del torneo.')
     } finally {
       setLoading(false)
     }
@@ -438,7 +438,7 @@ export function useTournamentSudokuGame({ tournamentId, accessToken }) {
       clearSnapshot(session._id)
       setPageStatus(
         payload?.outcome === 'EXPIRADA'
-          ? 'El tiempo del torneo se agoto y la serie quedo cerrada.'
+          ? 'El tiempo del torneo se agotó y la serie quedó cerrada.'
           : `Resultado registrado correctamente. Puntaje oficial: ${payload?.score ?? 0}.`,
       )
     } catch (error) {

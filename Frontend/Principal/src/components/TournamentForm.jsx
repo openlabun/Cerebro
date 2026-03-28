@@ -87,7 +87,7 @@ function TournamentForm({
     }
 
     if (!descripcion) {
-      setErrorMessage('El torneo necesita una descripcion.')
+      setErrorMessage('El torneo necesita una descripción.')
       return
     }
 
@@ -241,7 +241,7 @@ function TournamentForm({
           <small>
             {formData.esPublico
               ? 'Cualquier usuario autenticado puede inscribirse.'
-              : 'El backend generara un codigo de acceso automaticamente.'}
+              : 'El backend generará un código de acceso automáticamente.'}
           </small>
         </div>
       </div>
@@ -309,7 +309,7 @@ function TournamentForm({
             <div className="tournament-static-field tournament-static-field--stacked">
               <strong>Todos juegan la misma serie de Sudokus.</strong>
               <span>Las pistas estan deshabilitadas.</span>
-              <span>No se configura limite de participantes en esta version.</span>
+              <span>No se configura límite de participantes en esta versión.</span>
             </div>
           </div>
         </div>

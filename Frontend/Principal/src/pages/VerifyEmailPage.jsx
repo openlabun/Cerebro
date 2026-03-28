@@ -15,7 +15,7 @@ function VerifyEmailPage() {
     if (typeof initialMessage === 'string' && initialMessage.trim()) {
       return initialMessage.trim()
     }
-    return 'Ingresa el correo y el codigo que recibiste para activar tu cuenta.'
+    return 'Ingresa el correo y el código que recibiste para activar tu cuenta.'
   })
   const [tone, setTone] = useState('info')
 
@@ -30,7 +30,7 @@ function VerifyEmailPage() {
 
     if (!form.email.trim() || !form.code.trim()) {
       setTone('error')
-      setMessage('Completa el correo y el codigo de verificacion.')
+      setMessage('Completa el correo y el código de verificación.')
       return
     }
 
@@ -44,7 +44,7 @@ function VerifyEmailPage() {
         code: form.code.trim(),
       })
       setTone('success')
-      setMessage('Correo verificado. Ya puedes iniciar sesion con tu cuenta.')
+      setMessage('Correo verificado. Ya puedes iniciar sesión con tu cuenta.')
     } catch (error) {
       setTone('error')
       setMessage(error instanceof Error ? error.message : 'No fue posible verificar el correo.')
@@ -64,7 +64,7 @@ function VerifyEmailPage() {
           <article className="auth-card">
             <div className="auth-tabs">
               <Link className="auth-tab" to="/login">
-                Iniciar sesion
+                Iniciar sesión
               </Link>
               <Link className="auth-tab" to="/signup">
                 Crear cuenta
@@ -76,7 +76,7 @@ function VerifyEmailPage() {
 
             <p className="auth-copy">
               Si el registro quedo pendiente, escribe el mismo correo con el que creaste la
-              cuenta y el codigo recibido por email.
+              cuenta y el código recibido por email.
             </p>
 
             <form className="auth-form" onSubmit={handleSubmit}>
@@ -103,7 +103,7 @@ function VerifyEmailPage() {
                   autoCorrect="off"
                   name="code"
                   onChange={handleChange}
-                  placeholder="Ingresa tu codigo"
+                  placeholder="Ingresa tu código"
                   spellCheck="false"
                   type="text"
                   value={form.code}
@@ -120,7 +120,7 @@ function VerifyEmailPage() {
             </form>
 
             <p className="auth-links">
-              Ya puedes iniciar sesion? <Link to="/login">Volver al login</Link>
+              Ya puedes iniciar sesión? <Link to="/login">Volver al login</Link>
             </p>
           </article>
         </div>
