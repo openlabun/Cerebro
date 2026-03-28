@@ -29,6 +29,9 @@ const LEGACY_ROW_FORFEIT = -2;
 const LEGACY_ROW_FINISHED = -3;
 const STANDALONE_MATCH_PREFIX = 'standalone:';
 const DEFAULT_PVP_DIFFICULTY_KEY = 'medio';
+const PVP_JOIN_CODE_LENGTH = 5;
+const PVP_JOIN_CODE_MIN = 10 ** (PVP_JOIN_CODE_LENGTH - 1);
+const PVP_JOIN_CODE_MAX = 10 ** PVP_JOIN_CODE_LENGTH - 1;
 
 interface MatchRecord {
   _id?: string;
@@ -136,6 +139,8 @@ export class MatchService {
   private readonly matchOwnerToken = new Map<string, string>();
   private readonly userTokenCache = new Map<string, string>();
   private readonly userDisplayNameCache = new Map<string, string>();
+  private readonly reservedStandaloneJoinCodes = new Set<string>();
+  private reservedStandaloneJoinCodesLoaded = false;
 
   constructor(
     private readonly roble: RobleService,
@@ -152,7 +157,10 @@ export class MatchService {
 
   private stripSolution(state: MatchState) {
     const { solution, ...rest } = state;
-    return rest;
+    return {
+      ...rest,
+      joinCode: rest.inviteToken,
+    };
   }
 
   private cacheUserToken(userId: string, token: string) {
@@ -164,6 +172,13 @@ export class MatchService {
     if (typeof value !== 'string') return null;
     const normalized = value.trim();
     return normalized ? normalized : null;
+  }
+
+  private normalizeJoinCode(value: unknown): string | null {
+    if (typeof value !== 'string' && typeof value !== 'number') return null;
+    const normalized = String(value).replace(/\D/g, '').trim();
+    if (!normalized) return null;
+    return /^\d{4,5}$/.test(normalized) ? normalized : null;
   }
 
   private rememberUserDisplayName(
@@ -226,6 +241,7 @@ export class MatchService {
     displayName?: string,
   ) {
     if (!userId) return;
+    if (this.userDisplayNameCache.has(userId)) return;
 
     const profileDisplayName = await this.fetchContenedor1ProfileDisplayName(
       token,
@@ -237,8 +253,56 @@ export class MatchService {
     }
   }
 
-  private generateInviteToken(): string {
-    return randomBytes(12).toString('hex');
+  private generateJoinCodeCandidate(): string {
+    const randomValue = randomBytes(4).readUInt32BE(0);
+    const numericRange = PVP_JOIN_CODE_MAX - PVP_JOIN_CODE_MIN + 1;
+    return String(PVP_JOIN_CODE_MIN + (randomValue % numericRange));
+  }
+
+  private async ensureReservedJoinCodesLoaded(token: string) {
+    if (this.reservedStandaloneJoinCodesLoaded) return;
+
+    let matches: MatchRecord[] = [];
+    try {
+      matches = await this.roble.read<MatchRecord>(token, 'Matches');
+    } catch (error) {
+      this.logger.warn(
+        `No se pudieron leer matches para cargar codigos PvP reservados: ${(error as Error)?.message || error}`,
+      );
+      return;
+    }
+
+    this.reservedStandaloneJoinCodes.clear();
+    for (const match of matches) {
+      const joinCode = this.parseStandaloneScope(match?.torneoId || null)?.inviteToken;
+      if (joinCode) {
+        this.reservedStandaloneJoinCodes.add(joinCode);
+      }
+    }
+
+    this.reservedStandaloneJoinCodesLoaded = true;
+  }
+
+  private rememberReservedJoinCode(joinCode?: string | null) {
+    const normalizedJoinCode = this.normalizeOptionalString(joinCode);
+    if (normalizedJoinCode) {
+      this.reservedStandaloneJoinCodes.add(normalizedJoinCode);
+    }
+  }
+
+  private async generateUniqueJoinCode(token: string): Promise<string> {
+    await this.ensureReservedJoinCodesLoaded(token);
+
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const candidate = this.generateJoinCodeCandidate();
+      if (!this.reservedStandaloneJoinCodes.has(candidate)) {
+        return candidate;
+      }
+    }
+
+    throw new BadRequestException(
+      'No se pudo generar un codigo PvP disponible. Intenta de nuevo.',
+    );
   }
 
   private buildStandaloneScopeId(
@@ -282,8 +346,12 @@ export class MatchService {
     expectedInviteToken: string | null,
     providedInviteToken?: string,
   ) {
-    const expected = this.normalizeOptionalString(expectedInviteToken);
-    const provided = this.normalizeOptionalString(providedInviteToken);
+    const expected =
+      this.normalizeJoinCode(expectedInviteToken) ??
+      this.normalizeOptionalString(expectedInviteToken);
+    const provided =
+      this.normalizeJoinCode(providedInviteToken) ??
+      this.normalizeOptionalString(providedInviteToken);
 
     if (!expected) {
       throw new BadRequestException(
@@ -452,6 +520,7 @@ export class MatchService {
       _id: safe._id,
       torneoId: safe.torneoId,
       inviteToken: safe.inviteToken,
+      joinCode: safe.inviteToken,
       difficultyKey: safe.difficultyKey,
       jugador1Id: safe.jugador1Id,
       jugador2Id: safe.jugador2Id,
@@ -652,6 +721,7 @@ export class MatchService {
     allMoves: MovimientoRecord[],
     startedAt: string | null,
     referenceNowMs: number,
+    matchEndedAt: string | null = null,
   ): PlayerProgress {
     const boardState = this.cloneBoard(baseBoard);
     const emptyCells = baseBoard.flat().filter((c) => c === 0).length;
@@ -692,9 +762,11 @@ export class MatchService {
 
     const startedMs = this.parseDateMs(startedAt);
     const finishedMs = this.parseDateMs(finishedAt);
+    const matchEndedMs = this.parseDateMs(matchEndedAt);
+    const effectiveEndMs = finishedMs ?? matchEndedMs;
     const durationMs =
-      startedMs !== null && finishedMs !== null
-        ? Math.max(0, finishedMs - startedMs)
+      startedMs !== null && effectiveEndMs !== null
+        ? Math.max(0, effectiveEndMs - startedMs)
         : null;
     const elapsedMsForScore =
       durationMs ??
@@ -757,6 +829,10 @@ export class MatchService {
     );
     const referenceNowMs = Date.now();
     const startedAt = legacy.fechaInicio ?? base.fechaInicio ?? null;
+    const matchEndedAt =
+      legacy.estado === 'FINISHED' || legacy.estado === 'FORFEIT'
+        ? legacy.fechaFin ?? base.fechaFin ?? null
+        : null;
     const player1 = this.calculatePlayerProgress(
       base.jugador1Id,
       board,
@@ -764,6 +840,7 @@ export class MatchService {
       movimientos,
       startedAt,
       referenceNowMs,
+      matchEndedAt,
     );
     const player2 = legacy.jugador2Id
       ? this.calculatePlayerProgress(
@@ -773,6 +850,7 @@ export class MatchService {
           movimientos,
           startedAt,
           referenceNowMs,
+          matchEndedAt,
         )
       : null;
 
@@ -900,10 +978,12 @@ export class MatchService {
       seed,
       normalizedDifficultyKey,
     );
-    const inviteToken = this.generateInviteToken();
+    const inviteToken = normalizedTorneoId
+      ? null
+      : await this.generateUniqueJoinCode(token);
     const storedTorneoId = normalizedTorneoId
       ? normalizedTorneoId
-      : this.buildStandaloneScopeId(inviteToken, normalizedDifficultyKey);
+      : this.buildStandaloneScopeId(inviteToken!, normalizedDifficultyKey);
 
     const result = await this.roble.insert<MatchRecord>(token, 'Matches', [
       {
@@ -933,6 +1013,7 @@ export class MatchService {
     }
 
     this.rememberMatchOwnerToken(created._id!, usuarioId, token);
+    this.rememberReservedJoinCode(inviteToken);
     const state = await this.rebuildState(created._id!, token);
     await this.syncCerebroMatch(state);
     return this.stripSolution(state);
@@ -997,6 +1078,70 @@ export class MatchService {
     const updated = await this.rebuildState(matchId, token);
     await this.syncCerebroMatch(updated);
     return this.stripSolution(updated);
+  }
+
+  async joinMatchByCode(
+    joinCode: string,
+    usuarioId: string,
+    token: string,
+    displayName?: string,
+  ) {
+    const normalizedJoinCode = this.normalizeJoinCode(joinCode);
+    if (!normalizedJoinCode) {
+      throw new BadRequestException(
+        'Ingresa un codigo PvP valido de 4 o 5 digitos.',
+      );
+    }
+
+    let matches: MatchRecord[] = [];
+    try {
+      matches = await this.roble.read<MatchRecord>(token, 'Matches');
+    } catch (error) {
+      this.logger.warn(
+        `No se pudieron leer matches para unirse por codigo PvP: ${(error as Error)?.message || error}`,
+      );
+      throw new NotFoundException(
+        'No hay partidas disponibles con ese codigo.',
+      );
+    }
+
+    const candidates = matches
+      .filter((match) => match?._id)
+      .filter((match) => {
+        const standaloneScope = this.parseStandaloneScope(match.torneoId);
+        return standaloneScope?.inviteToken === normalizedJoinCode;
+      })
+      .sort(
+        (left, right) =>
+          new Date(right.fechaCreacion || 0).getTime() -
+          new Date(left.fechaCreacion || 0).getTime(),
+      );
+
+    for (const candidate of candidates) {
+      try {
+        const state = await this.rebuildState(candidate._id!, token);
+        if (
+          !state.torneoId &&
+          state.inviteToken === normalizedJoinCode &&
+          state.estado === 'WAITING'
+        ) {
+          return this.joinMatch(
+            state._id,
+            usuarioId,
+            token,
+            undefined,
+            normalizedJoinCode,
+            displayName,
+          );
+        }
+      } catch (error) {
+        this.logger.warn(
+          `No se pudo evaluar el match ${candidate._id} para join-by-code: ${(error as Error)?.message || error}`,
+        );
+      }
+    }
+
+    throw new NotFoundException('No hay partidas en espera con ese codigo.');
   }
 
   async makeMove(

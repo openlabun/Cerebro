@@ -509,6 +509,15 @@ export const apiClient = {
     })
   },
 
+  joinPvpMatchByCode(payload = {}, accessToken) {
+    return request('match/join-by-code', {
+      method: 'POST',
+      baseUrl: 'pvp',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
   getPvpMatch(matchId, accessToken, signal) {
     return request(`match/${matchId}`, {
       method: 'GET',

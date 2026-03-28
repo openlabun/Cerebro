@@ -20,25 +20,6 @@ import {
 } from '../lib/sudoku.js'
 import { apiClient } from '../services/apiClient.js'
 
-function buildInviteLink(matchId, { inviteToken = '', tournamentId = '', difficultyKey = '' } = {}) {
-  const basePath = `${import.meta.env.BASE_URL || '/'}pvp/${matchId}`
-  const params = new URLSearchParams({ join: '1' })
-  const normalizedTournamentId = String(tournamentId || '').trim()
-  const normalizedInviteToken = String(inviteToken || '').trim()
-  const normalizedDifficultyKey = String(difficultyKey || '').trim()
-
-  if (normalizedTournamentId) {
-    params.set('torneoId', normalizedTournamentId)
-  } else if (normalizedInviteToken) {
-    params.set('inviteToken', normalizedInviteToken)
-  }
-  if (normalizedDifficultyKey) {
-    params.set('difficultyKey', normalizedDifficultyKey)
-  }
-
-  return new URL(`${basePath}?${params.toString()}`, window.location.origin).toString()
-}
-
 function findFirstEditableCell(puzzle, boardState) {
   for (let row = 0; row < 9; row += 1) {
     for (let col = 0; col < 9; col += 1) {
@@ -123,14 +104,10 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
   const requestedTournamentId = searchParams.get('torneoId') || ''
   const requestedDifficultyKey = searchParams.get('difficultyKey') || ''
   const tournamentId = requestedTournamentId || match?.torneoId || ''
-  const inviteToken = tournamentId ? '' : requestedInviteToken || match?.inviteToken || ''
+  const joinCode = tournamentId ? '' : String(match?.joinCode || requestedInviteToken || match?.inviteToken || '').trim()
   const difficultyKey = match?.difficultyKey || requestedDifficultyKey || ''
   const difficulty = difficultyKey ? getDifficultyByKey(difficultyKey) : null
   const hintLimit = difficulty ? getHintLimit(difficulty) : null
-  const inviteLink = useMemo(
-    () => buildInviteLink(matchId, { inviteToken, tournamentId, difficultyKey }),
-    [difficultyKey, inviteToken, matchId, tournamentId],
-  )
   const webhookReceiverUrl = config.PVP_WEBHOOK_RECEIVER_URL
 
   useEffect(() => {
@@ -436,12 +413,17 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
     navigate('/', { replace: true })
   }
 
-  async function handleCopyInviteLink() {
+  async function handleCopyJoinCode() {
+    if (!joinCode) {
+      setStatus('Todavia no hay un codigo disponible para compartir.')
+      return
+    }
+
     try {
-      await navigator.clipboard.writeText(inviteLink)
-      setStatus('Enlace copiado al portapapeles.', true)
+      await navigator.clipboard.writeText(joinCode)
+      setStatus('Codigo PvP copiado al portapapeles.', true)
     } catch {
-      setStatus('No se pudo copiar el enlace. Copialo manualmente.')
+      setStatus('No se pudo copiar el codigo. Compartelo manualmente.')
     }
   }
 
@@ -622,19 +604,32 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
           {isWaiting ? (
             <div className="pvp-waiting-card">
               <h2>Esperando rival</h2>
-              <p>Comparte este enlace para que otro jugador entre desde otro navegador.</p>
-              <p>
-                Tablero configurado en {difficulty?.label || 'dificultad clasica'}.
-                {difficulty ? ` En single player permite ${hintLimit} pista(s).` : ''}
-              </p>
-              <div className="pvp-invite-box">
-                <code>{inviteLink}</code>
-              </div>
-              <div className="controls">
-                <button className="btn primary" type="button" onClick={handleCopyInviteLink}>
-                  Copiar enlace
-                </button>
-              </div>
+              {!tournamentId ? (
+                <>
+                  <p>Comparte este codigo para que otro jugador lo escriba en su pagina PvP.</p>
+                  <p>
+                    Tablero configurado en {difficulty?.label || 'dificultad clasica'}.
+                    {difficulty ? ` En single player permite ${hintLimit} pista(s).` : ''}
+                  </p>
+                  <div className="pvp-code-box" aria-live="polite">
+                    <span className="pvp-code-label">Codigo de ingreso</span>
+                    <strong className="pvp-code-value">{joinCode || '-----'}</strong>
+                  </div>
+                  <div className="controls">
+                    <button className="btn primary" type="button" onClick={handleCopyJoinCode}>
+                      Copiar codigo
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p>La partida pertenece a un torneo. Espera a que el rival entre desde el flujo del torneo.</p>
+                  <p>
+                    Tablero configurado en {difficulty?.label || 'dificultad clasica'}.
+                    {difficulty ? ` En single player permite ${hintLimit} pista(s).` : ''}
+                  </p>
+                </>
+              )}
             </div>
           ) : !match ? (
             <div className="pvp-waiting-card">
