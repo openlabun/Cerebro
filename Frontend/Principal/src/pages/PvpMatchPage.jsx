@@ -86,10 +86,12 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
   const [errorCount, setErrorCount] = useState(0)
   const [clockNow, setClockNow] = useState(Date.now())
   const [redirectScheduled, setRedirectScheduled] = useState(false)
+  const [winnerModalOpen, setWinnerModalOpen] = useState(false)
   const initializedBoardRef = useRef(false)
   const pollingInFlightRef = useRef(false)
   const selectedCellRef = useRef(null)
   const opponentFinishedRef = useRef(false)
+  const winnerModalShownRef = useRef(false)
 
   const {
     puzzle,
@@ -114,6 +116,8 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
 
   const c1AccessToken = session?.c1AccessToken || ''
   const c2AccessToken = session?.c2AccessToken || ''
+  const currentUserId = String(user?.sub || user?.id || '').trim()
+  const currentUserDisplayName = String(user?.name || user?.email || 'Jugador').trim() || 'Jugador'
   const shouldAutoJoin = searchParams.get('join') === '1'
   const requestedInviteToken = searchParams.get('inviteToken') || ''
   const requestedTournamentId = searchParams.get('torneoId') || ''
@@ -259,9 +263,17 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
               throw new Error('No hay sesion principal disponible para unirse a este match.')
             }
             await ensureTournamentJoined(requestedTournamentId)
-            await apiClient.joinPvpMatch(matchId, { tokenC1: c1AccessToken }, c2AccessToken)
+            await apiClient.joinPvpMatch(
+              matchId,
+              { tokenC1: c1AccessToken, displayName: currentUserDisplayName },
+              c2AccessToken,
+            )
           } else {
-            await apiClient.joinPvpMatch(matchId, { inviteToken: requestedInviteToken }, c2AccessToken)
+            await apiClient.joinPvpMatch(
+              matchId,
+              { inviteToken: requestedInviteToken, displayName: currentUserDisplayName },
+              c2AccessToken,
+            )
           }
           if (mounted) setStatus('Rival unido. Preparando partida...', true)
         }
@@ -279,7 +291,11 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
         if (shouldAutoJoin && requestedTournamentId && isNotPlayerError(error)) {
           try {
             await ensureTournamentJoined(requestedTournamentId)
-            await apiClient.joinPvpMatch(matchId, { tokenC1: c1AccessToken }, c2AccessToken)
+            await apiClient.joinPvpMatch(
+              matchId,
+              { tokenC1: c1AccessToken, displayName: currentUserDisplayName },
+              c2AccessToken,
+            )
             const joinedMatch = await fetchMatch({ updateBoard: true, signal: controller.signal })
             if (!mounted) return
             setStatus(
@@ -308,10 +324,12 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       mounted = false
       controller.abort()
     }
-  }, [c1AccessToken, c2AccessToken, matchId, requestedInviteToken, requestedTournamentId, shouldAutoJoin])
+  }, [c1AccessToken, c2AccessToken, currentUserDisplayName, matchId, requestedInviteToken, requestedTournamentId, shouldAutoJoin])
 
   useEffect(() => {
     if (!matchId || !c2AccessToken) return undefined
+
+    const pollingIntervalMs = match?.estado === 'ACTIVE' ? 1000 : 3000
 
     const interval = window.setInterval(() => {
       if (pollingInFlightRef.current) return
@@ -321,9 +339,38 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
         .finally(() => {
           pollingInFlightRef.current = false
         })
-    }, 3000)
+    }, pollingIntervalMs)
 
     return () => window.clearInterval(interval)
+  }, [c2AccessToken, match?.estado, matchId])
+
+  useEffect(() => {
+    if (!matchId || !c2AccessToken) return undefined
+
+    function refetchOnResume() {
+      if (document.visibilityState === 'hidden' || pollingInFlightRef.current) return
+
+      pollingInFlightRef.current = true
+      fetchMatch()
+        .catch(() => {})
+        .finally(() => {
+          pollingInFlightRef.current = false
+        })
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        refetchOnResume()
+      }
+    }
+
+    window.addEventListener('focus', refetchOnResume)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('focus', refetchOnResume)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [c2AccessToken, matchId])
 
   useEffect(() => {
@@ -336,32 +383,58 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
 
   const myGame = match?.myGame || null
   const opponent = match?.opponent || null
+  const myDisplayName = String(match?.myDisplayName || currentUserDisplayName || 'Jugador').trim() || 'Jugador'
+  const opponentDisplayName = String(opponent?.displayName || 'Rival').trim() || 'Rival'
+  const winnerDisplayName =
+    String(
+      match?.winnerDisplayName ||
+        (match?.ganadorId && match.ganadorId === currentUserId ? myDisplayName : opponentDisplayName) ||
+        'Jugador',
+    ).trim() || 'Jugador'
+  const iAmWinner = Boolean(match?.ganadorId && currentUserId && match.ganadorId === currentUserId)
   const startedAt = match?.fechaInicio ? new Date(match.fechaInicio).getTime() : null
   const elapsedSeconds = startedAt ? Math.floor((clockNow - startedAt) / 1000) : 0
   const isWaiting = match?.estado === 'WAITING'
   const isActive = match?.estado === 'ACTIVE'
 
   useEffect(() => {
-    if (!match || redirectScheduled) return
-    if (match.estado !== 'FINISHED' && match.estado !== 'FORFEIT') return
-
-    const isForfeit = match.estado === 'FORFEIT'
-    scheduleHomeRedirect(
-      isForfeit ? 'La partida termino por abandono. Volviendo al inicio...' : 'Partida finalizada. Volviendo al inicio...',
-      isForfeit ? 250 : 2000,
-    )
-  }, [match, redirectScheduled])
+    winnerModalShownRef.current = false
+    setWinnerModalOpen(false)
+  }, [matchId])
 
   useEffect(() => {
-    if (!opponent?.finished) {
+    if (!match || redirectScheduled) return
+    if (match.estado === 'FORFEIT') {
+      scheduleHomeRedirect('La partida termino por abandono. Volviendo al inicio...', 250)
+      return
+    }
+    if (match.estado !== 'FINISHED' || winnerModalShownRef.current) return
+
+    winnerModalShownRef.current = true
+    setWinnerModalOpen(true)
+    setStatus(
+      iAmWinner
+        ? 'Terminaste primero y ganaste la partida.'
+        : `${winnerDisplayName} completo el tablero primero y gano la partida.`,
+      iAmWinner,
+    )
+  }, [iAmWinner, match, redirectScheduled, setStatus, winnerDisplayName])
+
+  useEffect(() => {
+    if (!opponent?.finished || match?.estado !== 'ACTIVE') {
       opponentFinishedRef.current = false
       return
     }
     if (opponentFinishedRef.current) return
 
     opponentFinishedRef.current = true
-    setStatus('Tu rival termino su tablero. Completa el tuyo para cerrar la partida.', true)
-  }, [opponent?.finished, setStatus])
+    setStatus('Tu rival termino su tablero. Cerrando la partida...', true)
+  }, [match?.estado, opponent?.finished, setStatus])
+
+  function handleCloseWinnerModal() {
+    setWinnerModalOpen(false)
+    navigate('/', { replace: true })
+  }
 
   async function handleCopyInviteLink() {
     try {
@@ -438,7 +511,12 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       }
 
       if (result?.matchTerminado) {
-        scheduleHomeRedirect('Sudoku completado. Volviendo al inicio...')
+        setStatus(
+          result?.ganadorId === currentUserId
+            ? 'Completaste tu tablero primero. Confirmando victoria...'
+            : 'La partida termino. Confirmando resultado final...',
+          result?.ganadorId === currentUserId,
+        )
       } else {
         setStatus(result?.esCorrecta ? 'Movimiento correcto.' : 'Movimiento incorrecto.', Boolean(result?.esCorrecta))
       }
@@ -527,14 +605,14 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
               <span className="difficulty-label">
                 Pistas en single player: {hintLimit ?? '--'}
               </span>
-              <span className="difficulty-label">Jugador: {user?.email || 'Sesion activa'}</span>
+              <span className="difficulty-label">Jugador: {myDisplayName}</span>
               <span className="difficulty-label">Estado: {match?.estado || 'Cargando'}</span>
               <span className="difficulty-label">Errores: {errorCount}</span>
             </div>
 
             <div className="sudoku-top-right">
               <span className="timer-display">{formatSudokuTime(elapsedSeconds)}</span>
-              {opponent?.finished ? <span className="stat-chip">Rival termino su tablero</span> : null}
+              {match?.estado === 'FINISHED' ? <span className="stat-chip">{winnerDisplayName} gano</span> : null}
               <button className="btn btn-new-game" type="button" disabled={!isActive || forfeiting} onClick={handleForfeit}>
                 {forfeiting ? 'Abandonando...' : 'Abandonar'}
               </button>
@@ -585,9 +663,11 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
                 <div className="pvp-opponent-card">
                   <h3>Rival</h3>
                   <p>
-                    {opponent?.finished
-                      ? 'Tu rival ya termino su tablero.'
-                      : 'Recibiras un aviso cuando tu rival termine.'}
+                    {match?.estado === 'FINISHED'
+                      ? `${winnerDisplayName} gano la partida al completar primero el tablero.`
+                      : opponent?.finished
+                        ? 'Tu rival ya termino su tablero. Estamos cerrando la partida.'
+                        : 'Recibiras un aviso cuando tu rival termine.'}
                   </p>
                 </div>
               </SudokuControlsPanel>
@@ -606,10 +686,33 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
               </div>
             ) : null}
             <p className={`status${statusOk ? ' ok' : ''}`}>{status}</p>
-            <p className="mode-copy">Completa tu tablero y supera el progreso del rival.</p>
+            <p className="mode-copy">Gana quien complete primero su tablero.</p>
           </div>
         </div>
       </section>
+
+      {winnerModalOpen && match?.estado === 'FINISHED' ? (
+        <div className="sudoku-pause-overlay" role="alertdialog" aria-modal="true" aria-labelledby="pvp-finish-title">
+          <div className="sudoku-pause-card sudoku-completion-card pvp-finish-card">
+            <p className="section-kicker">{iAmWinner ? 'Victoria PvP' : 'Partida terminada'}</p>
+            <h3 id="pvp-finish-title" className="sudoku-pause-title">
+              {iAmWinner ? 'Ganaste el match' : 'Tenemos un ganador'}
+            </h3>
+            <p className="pvp-finish-winner">{winnerDisplayName}</p>
+            <p className="sudoku-pause-text">
+              {iAmWinner
+                ? 'Completaste tu tablero antes que tu rival y cerraste la partida.'
+                : `${winnerDisplayName} completo el tablero primero y se llevo la victoria.`}
+            </p>
+            <p className="pvp-finish-meta">
+              Tu puntaje: {myGame?.score ?? 0} | Puntaje rival: {opponent?.score ?? 0}
+            </p>
+            <button className="btn primary sudoku-pause-resume-btn" type="button" onClick={handleCloseWinnerModal}>
+              Volver al inicio
+            </button>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

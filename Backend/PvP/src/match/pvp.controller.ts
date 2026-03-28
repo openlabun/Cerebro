@@ -42,6 +42,7 @@ export class PvpController {
       req.accessToken,
       dto.tokenC1,
       dto.difficultyKey,
+      dto.displayName,
     );
   }
 
@@ -58,6 +59,7 @@ export class PvpController {
       req.accessToken,
       dto.tokenC1,
       dto.inviteToken,
+      dto.displayName,
     );
   }
 

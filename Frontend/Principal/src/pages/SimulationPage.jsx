@@ -13,7 +13,7 @@ const pvpFeatures = [
 
 function SimulationPage() {
   const navigate = useNavigate()
-  const { isAuthenticated, session } = useAuth()
+  const { isAuthenticated, session, user } = useAuth()
   const [creating, setCreating] = useState(false)
   const [status, setStatus] = useState('')
   const [difficultyKey, setDifficultyKey] = useState(difficultyLevels[2].key)
@@ -24,6 +24,7 @@ function SimulationPage() {
 
   const difficulty = getDifficultyByKey(difficultyKey)
   const hintLimit = getHintLimit(difficulty)
+  const displayName = String(user?.name || user?.email || 'Jugador').trim() || 'Jugador'
 
   if (!isAuthenticated) return null
 
@@ -37,7 +38,10 @@ function SimulationPage() {
     setStatus(`Creando match PvP en dificultad ${difficulty.label}...`)
 
     try {
-      const created = await apiClient.createPvpMatch({ difficultyKey }, session.c2AccessToken)
+      const created = await apiClient.createPvpMatch(
+        { difficultyKey, displayName },
+        session.c2AccessToken,
+      )
       const params = new URLSearchParams()
       if (created?.inviteToken) params.set('inviteToken', created.inviteToken)
       if (created?.difficultyKey) params.set('difficultyKey', created.difficultyKey)

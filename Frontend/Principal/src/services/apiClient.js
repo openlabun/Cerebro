@@ -110,6 +110,7 @@ async function performRequest(path, options = {}, tokenOverride = null) {
 
   const response = await fetch(buildUrl(baseUrl, path), {
     method,
+    cache: 'no-store',
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     signal,
