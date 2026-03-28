@@ -46,6 +46,8 @@ const LEGACY_CONFIG_KEYS = [
   'cantidadTableros',
 ]
 
+const HIDDEN_CONFIG_KEYS = ['esOficial']
+
 const CONFIG_ENTRY_DEFINITIONS = [
   {
     key: 'duracionMaximaMin',
@@ -205,6 +207,10 @@ export function canManageTournament(tournament, user) {
   return Boolean(ownerId) && currentUserIds.includes(ownerId)
 }
 
+export function isOfficialTournament(tournament) {
+  return tournament?.esOficial === true || tournament?.configuracion?.esOficial === true
+}
+
 function isOpaqueUserId(value) {
   const normalized = String(value || '').trim()
   if (!normalized) return false
@@ -337,6 +343,7 @@ export function describeTournamentConfig(configuracion) {
   Object.entries(config)
     .filter(([key, value]) => {
       if (COMMON_CONFIG_KEYS.includes(key)) return false
+      if (HIDDEN_CONFIG_KEYS.includes(key)) return false
       if (value === undefined || value === null || value === '') return false
       return true
     })

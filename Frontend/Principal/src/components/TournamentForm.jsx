@@ -15,6 +15,7 @@ function buildInitialFormState(initialTournament) {
   if (!initialTournament) {
     return {
       ...defaults,
+      configExtras: {},
       originalFechaInicioRaw: '',
       originalFechaFinRaw: '',
       fechaInicioDirty: false,
@@ -22,7 +23,7 @@ function buildInitialFormState(initialTournament) {
     }
   }
 
-  const { common } = splitTournamentConfig(initialTournament.configuracion)
+  const { common, extras } = splitTournamentConfig(initialTournament.configuracion)
 
   return {
     nombre: String(initialTournament.nombre || ''),
@@ -35,6 +36,7 @@ function buildInitialFormState(initialTournament) {
     duracionMaximaMin: common.duracionMaximaMin || defaults.duracionMaximaMin,
     numeroTableros: common.numeroTableros || defaults.numeroTableros,
     dificultad: common.dificultad || defaults.dificultad,
+    configExtras: extras,
     originalFechaInicioRaw: String(initialTournament.fechaInicio || ''),
     originalFechaFinRaw: String(initialTournament.fechaFin || ''),
     fechaInicioDirty: false,
@@ -122,7 +124,7 @@ function TournamentForm({
         duracionMaximaMin: formData.duracionMaximaMin,
         numeroTableros: formData.numeroTableros,
         dificultad: formData.dificultad,
-      }),
+      }, formData.configExtras),
     }
 
     const fechaInicio = new Date(payload.fechaInicio || '')

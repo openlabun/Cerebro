@@ -222,6 +222,7 @@ export class TorneosService {
       dificultad: difficulty.label,
       numeroTableros:
         resolvedBoardCount ?? this.DEFAULT_TOURNAMENT_BOARD_COUNT,
+      esOficial: config.esOficial === true,
     };
   }
 

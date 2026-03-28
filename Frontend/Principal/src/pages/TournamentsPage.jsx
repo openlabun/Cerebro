@@ -11,6 +11,7 @@ import {
   getTournamentOwnerLabel,
   getTournamentStatusTone,
   getTournamentVisibilityLabel,
+  isOfficialTournament,
   summarizeTournamentConfig,
   tournamentStateOptions,
   tournamentTypeOptions,
@@ -20,6 +21,10 @@ import '../styles/tournaments.css'
 
 function sortTournaments(rows, user) {
   return [...(rows || [])].sort((left, right) => {
+    const leftOfficial = isOfficialTournament(left) ? 1 : 0
+    const rightOfficial = isOfficialTournament(right) ? 1 : 0
+    if (leftOfficial !== rightOfficial) return rightOfficial - leftOfficial
+
     const leftOwned = canManageTournament(left, user) ? 1 : 0
     const rightOwned = canManageTournament(right, user) ? 1 : 0
 
@@ -100,6 +105,8 @@ function TournamentsPage() {
 
   const publicAccessUnavailable =
     !isAuthenticated && fetchError.includes('ROBLE_PUBLIC_READ_TOKEN')
+  const showGuestPublicIntro = !isAuthenticated && !publicAccessUnavailable
+  const showGuestRestrictedState = !isAuthenticated && publicAccessUnavailable
 
   const filteredTournaments = tournaments.filter((row) => {
     const name = String(row?.nombre || '').toLowerCase()
@@ -118,15 +125,18 @@ function TournamentsPage() {
     return matchesSearch && matchesState && matchesType && matchesVisibility
   })
 
+  const officialTournaments = filteredTournaments.filter((row) => isOfficialTournament(row))
+  const regularTournaments = filteredTournaments.filter((row) => !isOfficialTournament(row))
+
   const ownTournaments = isAuthenticated
-    ? filteredTournaments.filter((row) => canManageTournament(row, user))
+    ? regularTournaments.filter((row) => canManageTournament(row, user))
     : []
   const joinedTournaments = isAuthenticated
-    ? filteredTournaments.filter((row) => row?.inscrito === true && !canManageTournament(row, user))
+    ? regularTournaments.filter((row) => row?.inscrito === true && !canManageTournament(row, user))
     : []
   const otherTournaments = isAuthenticated
-    ? filteredTournaments.filter((row) => !canManageTournament(row, user) && row?.inscrito !== true)
-    : filteredTournaments
+    ? regularTournaments.filter((row) => !canManageTournament(row, user) && row?.inscrito !== true)
+    : regularTournaments
 
   function renderTournamentCard(tournament, sectionKey) {
     const isOwner = canManageTournament(tournament, user)
@@ -141,6 +151,9 @@ function TournamentsPage() {
           </div>
 
           <div className="tournament-badge-row">
+            {isOfficialTournament(tournament) ? (
+              <span className="tournament-badge tournament-badge--warning">Oficial</span>
+            ) : null}
             {tournament?.inscrito === true && !isOwner ? (
               <span className="tournament-badge tournament-badge--success">Inscrito</span>
             ) : null}
@@ -300,7 +313,7 @@ function TournamentsPage() {
         </div>
       </section>
 
-      {isAuthenticated ? null : (
+      {showGuestPublicIntro ? (
         <section className="board-card tournament-panel">
           <div className="section-heading tournament-panel-heading">
             <div>
@@ -312,7 +325,31 @@ function TournamentsPage() {
             Para crear un torneo o unirte a uno, primero debes iniciar sesion.
           </p>
         </section>
-      )}
+      ) : null}
+
+      {showGuestRestrictedState ? (
+        <section className="board-card tournament-panel">
+          <div className="section-heading tournament-panel-heading">
+            <div>
+              <p className="section-kicker">Acceso restringido</p>
+              <h2>Debes iniciar sesion para ver los torneos en este entorno</h2>
+            </div>
+          </div>
+          <p className="mode-copy">
+            La lectura publica no esta configurada todavia. Si entras con tu cuenta, podras ver los
+            torneos disponibles y administrar los tuyos.
+          </p>
+          <div className="tournament-card-actions">
+            <button
+              className="btn primary"
+              type="button"
+              onClick={() => navigate('/login', { state: { from: { pathname: '/torneos' } } })}
+            >
+              Iniciar sesion
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       {isAuthenticated && creationOpen ? (
         <section className="board-card tournament-panel">
@@ -332,97 +369,98 @@ function TournamentsPage() {
         </section>
       ) : null}
 
-      <section className="board-card tournament-panel">
-        <div className="section-heading tournament-panel-heading">
-          <div>
-            <p className="section-kicker">Filtros</p>
-            <h2>Ajusta lo que quieres ver</h2>
+      {showGuestRestrictedState ? null : (
+        <section className="board-card tournament-panel">
+          <div className="section-heading tournament-panel-heading">
+            <div>
+              <p className="section-kicker">Filtros</p>
+              <h2>Ajusta lo que quieres ver</h2>
+            </div>
+            <span className="chip">{filteredTournaments.length} visibles</span>
           </div>
-          <span className="chip">{filteredTournaments.length} visibles</span>
-        </div>
 
-        <div className="tournament-filters">
-          <label className="auth-field tournament-filter-search">
-            <span>Buscar</span>
-            <input
-              type="search"
-              value={filters.search}
-              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder="Nombre o descripcion"
-            />
-          </label>
+          <div className="tournament-filters">
+            <label className="auth-field tournament-filter-search">
+              <span>Buscar</span>
+              <input
+                type="search"
+                value={filters.search}
+                onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                placeholder="Nombre o descripcion"
+              />
+            </label>
 
-          <label className="auth-field">
-            <span>Estado</span>
-            <select
-              value={filters.state}
-              onChange={(event) => setFilters((current) => ({ ...current, state: event.target.value }))}
-            >
-              <option value="">Todos</option>
-              {tournamentStateOptions
-                .filter((option) => option.value === 'PROGRAMADO' || option.value === 'ACTIVO')
-                .map((option) => (
+            <label className="auth-field">
+              <span>Estado</span>
+              <select
+                value={filters.state}
+                onChange={(event) => setFilters((current) => ({ ...current, state: event.target.value }))}
+              >
+                <option value="">Todos</option>
+                {tournamentStateOptions
+                  .filter((option) => option.value === 'PROGRAMADO' || option.value === 'ACTIVO')
+                  .map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+              </select>
+            </label>
+
+            <label className="auth-field">
+              <span>Tipo</span>
+              <select
+                value={filters.type}
+                onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}
+              >
+                <option value="">Todos</option>
+                {tournamentTypeOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
-            </select>
-          </label>
+              </select>
+            </label>
 
-          <label className="auth-field">
-            <span>Tipo</span>
-            <select
-              value={filters.type}
-              onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}
-            >
-              <option value="">Todos</option>
-              {tournamentTypeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="auth-field">
+              <span>Visibilidad</span>
+              <select
+                value={filters.visibility}
+                onChange={(event) => setFilters((current) => ({ ...current, visibility: event.target.value }))}
+              >
+                <option value="">Todas</option>
+                <option value="PUBLICO">Publicos</option>
+                <option value="PRIVADO">Privados</option>
+              </select>
+            </label>
+          </div>
 
-          <label className="auth-field">
-            <span>Visibilidad</span>
-            <select
-              value={filters.visibility}
-              onChange={(event) => setFilters((current) => ({ ...current, visibility: event.target.value }))}
-            >
-              <option value="">Todas</option>
-              <option value="PUBLICO">Publicos</option>
-              <option value="PRIVADO">Privados</option>
-            </select>
-          </label>
-        </div>
-
-        {pageStatus ? <p className="status ok">{pageStatus}</p> : null}
-        {fetchError && !publicAccessUnavailable ? <p className="status error">{fetchError}</p> : null}
-      </section>
+          {pageStatus ? <p className="status ok">{pageStatus}</p> : null}
+          {fetchError && !publicAccessUnavailable ? <p className="status error">{fetchError}</p> : null}
+        </section>
+      )}
 
       {loading ? (
         <section className="board-card tournament-empty">
           <h3>Cargando torneos...</h3>
           <p>Traemos la informacion mas reciente para que puedas administrarla.</p>
         </section>
-      ) : publicAccessUnavailable ? (
-        <section className="board-card tournament-empty">
-          <h3>Debes iniciar sesion para ver los torneos en este entorno</h3>
-          <p>
-            La lectura publica no esta configurada todavia. Si entras con tu cuenta, podras ver los
-            torneos disponibles y administrar los tuyos.
-          </p>
-          <button
-            className="btn primary"
-            type="button"
-            onClick={() => navigate('/login', { state: { from: { pathname: '/torneos' } } })}
-          >
-            Iniciar sesion
-          </button>
-        </section>
-      ) : isAuthenticated ? (
+      ) : null}
+
+      {!loading && isAuthenticated ? (
         <section className="tournament-layout">
+          {officialTournaments.length
+            ? renderTournamentSection({
+                sectionKey: 'official',
+                title: 'Torneos oficiales',
+                kicker: 'Prioridad',
+                rows: officialTournaments,
+                emptyTitle: 'Aun no hay torneos oficiales visibles',
+                emptyText: 'Cuando administracion publique uno, aparecera primero aqui.',
+                panelClassName: 'tournament-column-panel--wide',
+              })
+            : null}
+
           {renderTournamentSection({
             sectionKey: 'joined',
             title: 'Torneos donde estas inscrito',
@@ -453,18 +491,34 @@ function TournamentsPage() {
             })}
           </div>
         </section>
-      ) : (
-        <section className="tournament-columns tournament-columns--single">
-          {renderTournamentSection({
-            sectionKey: 'public',
-            title: 'Torneos disponibles',
-            kicker: 'Explorar',
-            rows: filteredTournaments,
-            emptyTitle: 'No hay torneos con este filtro',
-            emptyText: 'Prueba cambiando los filtros o vuelve mas tarde.',
-          })}
+      ) : null}
+
+      {!loading && !isAuthenticated && !publicAccessUnavailable ? (
+        <section className="tournament-layout">
+          {officialTournaments.length
+            ? renderTournamentSection({
+                sectionKey: 'official-public',
+                title: 'Torneos oficiales',
+                kicker: 'Prioridad',
+                rows: officialTournaments,
+                emptyTitle: 'Aun no hay torneos oficiales visibles',
+                emptyText: 'Cuando administracion publique uno, aparecera primero aqui.',
+                panelClassName: 'tournament-column-panel--wide',
+              })
+            : null}
+
+          <section className="tournament-columns tournament-columns--single">
+            {renderTournamentSection({
+              sectionKey: 'public',
+              title: 'Torneos disponibles',
+              kicker: 'Explorar',
+              rows: otherTournaments,
+              emptyTitle: 'No hay torneos con este filtro',
+              emptyText: 'Prueba cambiando los filtros o vuelve mas tarde.',
+            })}
+          </section>
         </section>
-      )}
+      ) : null}
     </main>
   )
 }

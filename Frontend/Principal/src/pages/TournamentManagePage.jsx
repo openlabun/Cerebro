@@ -11,6 +11,7 @@ import {
   formatTournamentState,
   formatTournamentType,
   getAllowedTournamentTransitions,
+  isOfficialTournament,
   getTournamentOwnerLabel,
   getTournamentStatusTone,
   getTournamentVisibilityLabel,
@@ -309,6 +310,9 @@ function TournamentManagePage() {
           <p className="lead">{tournament?.descripcion || 'Sin descripcion.'}</p>
 
           <div className="tournament-badge-row">
+            {isOfficialTournament(tournament) ? (
+              <span className="tournament-badge tournament-badge--warning">Oficial</span>
+            ) : null}
             <span className={`tournament-badge tournament-badge--${getTournamentStatusTone(tournament?.estado)}`}>
               {formatTournamentState(tournament?.estado)}
             </span>
