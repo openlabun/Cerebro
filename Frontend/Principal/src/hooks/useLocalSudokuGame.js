@@ -4,6 +4,10 @@ import { cloneNotes, useSudokuGame } from '../context/SudokuGameContext.jsx'
 import { useSudokuKeyboardControls } from './useSudokuKeyboardControls.js'
 import { apiClient } from '../services/apiClient.js'
 import {
+  ACHIEVEMENT_ID_KEY_MAP,
+  ACHIEVEMENT_KEY_ID_MAP,
+} from '../lib/achievementIds.js'
+import {
   calculateProgress,
   calculateScore,
   clearNotesCell,
@@ -27,20 +31,6 @@ const ACHIEVEMENT_BADGES = [
   { key: 'ten-games', label: '10 partidas', icon: '10', description: 'Completa 10 partidas de Sudoku.' },
   { key: 'score-over-500', label: 'Puntaje >500', icon: '🏆', description: 'Alcanza un puntaje mayor a 500 en una partida.' },
 ]
-
-function normalizeText(value) {
-  return String(value || '').trim().toLowerCase()
-}
-
-function mapAchievementNameToBadgeKey(name) {
-  const normalized = normalizeText(name)
-  if (!normalized) return null
-  if (normalized.includes('primera') && normalized.includes('partida')) return 'first-game'
-  if (normalized.includes('5') && normalized.includes('partida')) return 'five-games'
-  if (normalized.includes('10') && normalized.includes('partida')) return 'ten-games'
-  if (normalized.includes('500') && normalized.includes('puntaje')) return 'score-over-500'
-  return null
-}
 
 function getUnlockedKeysByRules(partidasJugadas = 0, bestScore = 0) {
   const unlocked = []
@@ -183,7 +173,6 @@ export function useLocalSudokuGame() {
   const { isAuthenticated, accessToken, isVerified, user, isLoading } = useAuth()
   const latestMetricsRef = useRef({ seconds: 0, errorCount: 0, hintsUsed: 0 })
   const bestSudokuScoreRef = useRef(0)
-  const achievementCatalogRef = useRef(new Map())
   const gameLoadRequestRef = useRef(0)
 
   const [unlockedBadges, setUnlockedBadges] = useState(new Set())
@@ -211,47 +200,15 @@ export function useLocalSudokuGame() {
     toggleSelectedNote,
   } = useSudokuGame()
 
-  async function syncRemoteAchievementCatalog() {
-    if (!accessToken) return
-
-    try {
-      const catalog = await apiClient.getAchievements(accessToken)
-      const map = new Map()
-      if (!Array.isArray(catalog)) {
-        achievementCatalogRef.current = map
-        return
-      }
-
-      catalog.forEach((item) => {
-        const key = mapAchievementNameToBadgeKey(item?.nombre)
-        if (!key || !item?._id) return
-        map.set(key, String(item._id))
-      })
-
-      achievementCatalogRef.current = map
-    } catch (error) {
-      console.warn('No se pudo cargar el catálogo de logros:', error)
-    }
-  }
-
   async function getUnlockedKeysFromRemote() {
     if (!accessToken) return []
 
     try {
-      if (achievementCatalogRef.current.size === 0) {
-        await syncRemoteAchievementCatalog()
-      }
-
       const myAchievements = await apiClient.getMyAchievements(accessToken)
       if (!Array.isArray(myAchievements)) return []
 
-      const byId = new Map()
-      achievementCatalogRef.current.forEach((logroId, key) => {
-        byId.set(logroId, key)
-      })
-
       return myAchievements
-        .map((item) => byId.get(String(item?.logroId || '')))
+        .map((item) => ACHIEVEMENT_ID_KEY_MAP[String(item?.logroId || '').trim()])
         .filter(Boolean)
     } catch (error) {
       console.warn('No se pudieron consultar los logros del usuario:', error)
@@ -261,11 +218,9 @@ export function useLocalSudokuGame() {
 
   async function unlockRemoteAchievements(unlockedKeys) {
     if (!accessToken) return
-    const map = achievementCatalogRef.current
-    if (map.size === 0) return
 
     const promises = Array.from(new Set(unlockedKeys))
-      .map((badgeKey) => map.get(badgeKey))
+      .map((badgeKey) => ACHIEVEMENT_KEY_ID_MAP[badgeKey])
       .filter(Boolean)
       .map((logroId) =>
         apiClient.unlockAchievement(accessToken, logroId).catch((error) => {
@@ -294,7 +249,6 @@ export function useLocalSudokuGame() {
       const byRules = getUnlockedKeysByRules(partidasJugadas, bestSudokuScoreRef.current)
       byRules.forEach((key) => nextUnlocked.add(key))
 
-      await syncRemoteAchievementCatalog()
       await unlockRemoteAchievements(nextUnlocked)
 
       const remoteKeys = await getUnlockedKeysFromRemote()

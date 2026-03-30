@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { apiClient } from '../services/apiClient.js'
+import { ACHIEVEMENT_ID_KEY_MAP } from '../lib/achievementIds.js'
 import ProfileCard from '../components/ProfileCard.jsx'
 import '../styles/profile.css'
 
@@ -8,32 +9,13 @@ const DEFAULT_PROFILE_NAME = 'Invitado#0001'
 const DEFAULT_PROFILE_TITLE = 'Titulo: "El dios de los números"'
 const GAME_ID_SUDOKU = 'uVsB-k2rjora'
 
-const ACHIEVEMENT_ID_KEY_MAP = {
-  'jNVlXBxVZ4Ik': 'first-game',
-  'eKdjK4OKd_qV': 'five-games',
-  '_8uXFa1YZV-d': 'ten-games',
-  'pLHLX9-29oIY': 'score-over-500',
-}
-
 async function loadAchievementsFromRemote(accessToken) {
   try {
-    const catalog = await apiClient.getAchievements(accessToken)
     const myAchievements = await apiClient.getMyAchievements(accessToken)
-    if (!Array.isArray(catalog) || !Array.isArray(myAchievements)) return new Set()
-
-    const byId = new Map()
-    catalog.forEach((item) => {
-      const logroId = String(item?._id || '')
-      if (!logroId) return
-
-      const key = ACHIEVEMENT_ID_KEY_MAP[logroId]
-      if (!key) return
-
-      byId.set(logroId, key)
-    })
+    if (!Array.isArray(myAchievements)) return new Set()
 
     const unlockedKeys = myAchievements
-      .map((item) => byId.get(String(item?.logroId || '')))
+      .map((item) => ACHIEVEMENT_ID_KEY_MAP[String(item?.logroId || '').trim()])
       .filter(Boolean)
 
     return new Set(unlockedKeys)
@@ -134,6 +116,7 @@ function ProfilePage() {
   // Cargar logros desde la base de datos al iniciar sesión
   useEffect(() => {
     if (!isAuthenticated || !accessToken) {
+      setUnlockedBadges(new Set())
       return
     }
 
