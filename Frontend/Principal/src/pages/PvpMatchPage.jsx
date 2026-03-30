@@ -11,6 +11,7 @@ import {
 } from '../context/SudokuGameContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useSudokuKeyboardControls } from '../hooks/useSudokuKeyboardControls.js'
+import { useLiveHeartbeat } from '../hooks/useLiveHeartbeat.js'
 import { generatePvpBoard } from '../lib/pvpSudoku.js'
 import {
   clearNotesCell,
@@ -18,105 +19,7 @@ import {
   getDifficultyByKey,
   getHintLimit,
 } from '../lib/sudoku.js'
-import { syncSudokuStreak } from '../lib/streaks.js'
 import { apiClient } from '../services/apiClient.js'
-
-const GAME_ID_SUDOKU = 'uVsB-k2rjora'
-
-const ACHIEVEMENT_ID_KEY_MAP = {
-  'jNVlXBxVZ4Ik': 'first-game',
-  'eKdjK4OKd_qV': 'five-games',
-  '_8uXFa1YZV-d': 'ten-games',
-  'pLHLX9-29oIY': 'score-over-500',
-}
-
-async function loadAchievementsFromRemote(accessToken) {
-  try {
-    const catalog = await apiClient.getAchievements(accessToken)
-    const myAchievements = await apiClient.getMyAchievements(accessToken)
-    if (!Array.isArray(catalog) || !Array.isArray(myAchievements)) return new Set()
-
-    const byId = new Map()
-    catalog.forEach((item) => {
-      const logroId = String(item?._id || '')
-      if (!logroId) return
-
-      const key = ACHIEVEMENT_ID_KEY_MAP[logroId]
-      if (!key) return
-
-      byId.set(logroId, key)
-    })
-
-    const unlockedKeys = myAchievements
-      .map((item) => byId.get(String(item?.logroId || '')))
-      .filter(Boolean)
-
-    return new Set(unlockedKeys)
-  } catch (error) {
-    return new Set()
-  }
-}
-
-function getUnlockedKeysByRules(partidasJugadas = 0, elo = 0) {
-  const unlocked = []
-  if (partidasJugadas >= 1) unlocked.push('first-game')
-  if (partidasJugadas >= 5) unlocked.push('five-games')
-  if (partidasJugadas >= 10) unlocked.push('ten-games')
-  if (elo > 500) unlocked.push('score-over-500')
-  return unlocked
-}
-
-async function registerSudokuActivity(accessToken, nextScore, gameSession) {
-  if (!accessToken) return { recorded: false, newlyUnlockedAchievements: [] }
-
-  try {
-    if (gameSession?.jugadoEn) {
-      await syncSudokuStreak(accessToken, GAME_ID_SUDOKU, gameSession)
-    }
-
-    const stats = await apiClient.getMyGameStats(accessToken, GAME_ID_SUDOKU)
-    const partidasJugadas = Number(stats?.partidasJugadas || 0) + 1
-    const elo = Number(stats?.elo || 0)
-
-    const byRules = getUnlockedKeysByRules(partidasJugadas, Math.max(elo, nextScore))
-    const remoteKeys = await loadAchievementsFromRemote(accessToken)
-    const allKeys = new Set([...byRules, ...remoteKeys])
-
-    const uniqueKeys = Array.from(allKeys)
-    const promises = uniqueKeys
-      .map((badgeKey) => {
-        const logroId = ACHIEVEMENT_ID_KEY_MAP[badgeKey]
-        if (!logroId) return null
-        return apiClient.unlockAchievement(accessToken, logroId).catch(() => null)
-      })
-      .filter(Boolean)
-
-    await Promise.all(promises)
-
-    return { recorded: true, newlyUnlockedAchievements: [] }
-  } catch (error) {
-    return { recorded: false, newlyUnlockedAchievements: [] }
-  }
-}
-
-function buildInviteLink(matchId, { inviteToken = '', tournamentId = '', difficultyKey = '' } = {}) {
-  const basePath = `${import.meta.env.BASE_URL || '/'}pvp/${matchId}`
-  const params = new URLSearchParams({ join: '1' })
-  const normalizedTournamentId = String(tournamentId || '').trim()
-  const normalizedInviteToken = String(inviteToken || '').trim()
-  const normalizedDifficultyKey = String(difficultyKey || '').trim()
-
-  if (normalizedTournamentId) {
-    params.set('torneoId', normalizedTournamentId)
-  } else if (normalizedInviteToken) {
-    params.set('inviteToken', normalizedInviteToken)
-  }
-  if (normalizedDifficultyKey) {
-    params.set('difficultyKey', normalizedDifficultyKey)
-  }
-
-  return new URL(`${basePath}?${params.toString()}`, window.location.origin).toString()
-}
 
 function findFirstEditableCell(puzzle, boardState) {
   for (let row = 0; row < 9; row += 1) {
@@ -165,11 +68,12 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
   const [errorCount, setErrorCount] = useState(0)
   const [clockNow, setClockNow] = useState(Date.now())
   const [redirectScheduled, setRedirectScheduled] = useState(false)
+  const [winnerModalOpen, setWinnerModalOpen] = useState(false)
   const initializedBoardRef = useRef(false)
   const pollingInFlightRef = useRef(false)
   const selectedCellRef = useRef(null)
   const opponentFinishedRef = useRef(false)
-  const completionProcessedRef = useRef(false)
+  const winnerModalShownRef = useRef(false)
 
   const {
     puzzle,
@@ -194,19 +98,17 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
 
   const c1AccessToken = session?.c1AccessToken || ''
   const c2AccessToken = session?.c2AccessToken || ''
+  const currentUserId = String(user?.sub || user?.id || '').trim()
+  const currentUserDisplayName = String(user?.name || user?.email || 'Jugador').trim() || 'Jugador'
   const shouldAutoJoin = searchParams.get('join') === '1'
   const requestedInviteToken = searchParams.get('inviteToken') || ''
   const requestedTournamentId = searchParams.get('torneoId') || ''
   const requestedDifficultyKey = searchParams.get('difficultyKey') || ''
   const tournamentId = requestedTournamentId || match?.torneoId || ''
-  const inviteToken = tournamentId ? '' : requestedInviteToken || match?.inviteToken || ''
+  const joinCode = tournamentId ? '' : String(match?.joinCode || requestedInviteToken || match?.inviteToken || '').trim()
   const difficultyKey = match?.difficultyKey || requestedDifficultyKey || ''
   const difficulty = difficultyKey ? getDifficultyByKey(difficultyKey) : null
   const hintLimit = difficulty ? getHintLimit(difficulty) : null
-  const inviteLink = useMemo(
-    () => buildInviteLink(matchId, { inviteToken, tournamentId, difficultyKey }),
-    [difficultyKey, inviteToken, matchId, tournamentId],
-  )
   const webhookReceiverUrl = config.PVP_WEBHOOK_RECEIVER_URL
 
   useEffect(() => {
@@ -325,7 +227,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       if (shouldAutoJoin && !requestedInviteToken && !requestedTournamentId) {
         if (mounted) {
           setLoading(false)
-          setStatus('Este enlace de invitacion no es valido.')
+          setStatus('Este enlace de invitación no es válido.')
         }
         return
       }
@@ -336,12 +238,20 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
         if (shouldAutoJoin) {
           if (requestedTournamentId) {
             if (!c1AccessToken) {
-              throw new Error('No hay sesion principal disponible para unirse a este match.')
+              throw new Error('No hay sesión principal disponible para unirse a este match.')
             }
             await ensureTournamentJoined(requestedTournamentId)
-            await apiClient.joinPvpMatch(matchId, { tokenC1: c1AccessToken }, c2AccessToken)
+            await apiClient.joinPvpMatch(
+              matchId,
+              { tokenC1: c1AccessToken, displayName: currentUserDisplayName },
+              c2AccessToken,
+            )
           } else {
-            await apiClient.joinPvpMatch(matchId, { inviteToken: requestedInviteToken }, c2AccessToken)
+            await apiClient.joinPvpMatch(
+              matchId,
+              { inviteToken: requestedInviteToken, displayName: currentUserDisplayName },
+              c2AccessToken,
+            )
           }
           if (mounted) setStatus('Rival unido. Preparando partida...', true)
         }
@@ -359,13 +269,17 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
         if (shouldAutoJoin && requestedTournamentId && isNotPlayerError(error)) {
           try {
             await ensureTournamentJoined(requestedTournamentId)
-            await apiClient.joinPvpMatch(matchId, { tokenC1: c1AccessToken }, c2AccessToken)
+            await apiClient.joinPvpMatch(
+              matchId,
+              { tokenC1: c1AccessToken, displayName: currentUserDisplayName },
+              c2AccessToken,
+            )
             const joinedMatch = await fetchMatch({ updateBoard: true, signal: controller.signal })
             if (!mounted) return
             setStatus(
               joinedMatch.estado === 'ACTIVE'
                 ? 'Partida activa. Ya puedes comenzar a jugar.'
-                : 'Rival unido. Esperando sincronizacion del match.',
+                : 'Rival unido. Esperando sincronización del match.',
               true,
             )
             return
@@ -388,10 +302,12 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       mounted = false
       controller.abort()
     }
-  }, [c1AccessToken, c2AccessToken, matchId, requestedInviteToken, requestedTournamentId, shouldAutoJoin])
+  }, [c1AccessToken, c2AccessToken, currentUserDisplayName, matchId, requestedInviteToken, requestedTournamentId, shouldAutoJoin])
 
   useEffect(() => {
     if (!matchId || !c2AccessToken) return undefined
+
+    const pollingIntervalMs = match?.estado === 'ACTIVE' ? 1000 : 3000
 
     const interval = window.setInterval(() => {
       if (pollingInFlightRef.current) return
@@ -401,9 +317,38 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
         .finally(() => {
           pollingInFlightRef.current = false
         })
-    }, 3000)
+    }, pollingIntervalMs)
 
     return () => window.clearInterval(interval)
+  }, [c2AccessToken, match?.estado, matchId])
+
+  useEffect(() => {
+    if (!matchId || !c2AccessToken) return undefined
+
+    function refetchOnResume() {
+      if (document.visibilityState === 'hidden' || pollingInFlightRef.current) return
+
+      pollingInFlightRef.current = true
+      fetchMatch()
+        .catch(() => {})
+        .finally(() => {
+          pollingInFlightRef.current = false
+        })
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        refetchOnResume()
+      }
+    }
+
+    window.addEventListener('focus', refetchOnResume)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('focus', refetchOnResume)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [c2AccessToken, matchId])
 
   useEffect(() => {
@@ -416,74 +361,81 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
 
   const myGame = match?.myGame || null
   const opponent = match?.opponent || null
+  const myDisplayName = String(match?.myDisplayName || currentUserDisplayName || 'Jugador').trim() || 'Jugador'
+  const opponentDisplayName = String(opponent?.displayName || 'Rival').trim() || 'Rival'
+  const winnerDisplayName =
+    String(
+      match?.winnerDisplayName ||
+        (match?.ganadorId && match.ganadorId === currentUserId ? myDisplayName : opponentDisplayName) ||
+        'Jugador',
+    ).trim() || 'Jugador'
+  const iAmWinner = Boolean(match?.ganadorId && currentUserId && match.ganadorId === currentUserId)
   const startedAt = match?.fechaInicio ? new Date(match.fechaInicio).getTime() : null
   const elapsedSeconds = startedAt ? Math.floor((clockNow - startedAt) / 1000) : 0
   const isWaiting = match?.estado === 'WAITING'
   const isActive = match?.estado === 'ACTIVE'
 
+  useLiveHeartbeat(
+    {
+      mode: isWaiting ? 'pvp_lobby' : 'pvp',
+      difficulty: difficulty?.label || '',
+      state: loading ? 'loading' : String(match?.estado || (shouldAutoJoin ? 'joining' : 'waiting')).toLowerCase(),
+      matchId,
+      tournamentId,
+    },
+    { enabled: Boolean(c2AccessToken) },
+  )
+
+  useEffect(() => {
+    winnerModalShownRef.current = false
+    setWinnerModalOpen(false)
+  }, [matchId])
+
   useEffect(() => {
     if (!match || redirectScheduled) return
-    if (match.estado !== 'FINISHED' && match.estado !== 'FORFEIT') return
+    if (match.estado === 'FORFEIT') {
+      scheduleHomeRedirect('La partida terminó por abandono. Volviendo al inicio...', 250)
+      return
+    }
+    if (match.estado !== 'FINISHED' || winnerModalShownRef.current) return
 
-    const isForfeit = match.estado === 'FORFEIT'
-    scheduleHomeRedirect(
-      isForfeit ? 'La partida termino por abandono. Volviendo al inicio...' : 'Partida finalizada. Volviendo al inicio...',
-      isForfeit ? 250 : 2000,
+    winnerModalShownRef.current = true
+    setWinnerModalOpen(true)
+    setStatus(
+      iAmWinner
+        ? 'Terminaste primero y ganaste la partida.'
+        : `${winnerDisplayName} completo el tablero primero y gano la partida.`,
+      iAmWinner,
     )
-  }, [match, redirectScheduled])
+  }, [iAmWinner, match, redirectScheduled, setStatus, winnerDisplayName])
 
   useEffect(() => {
-    if (!opponent?.finished) {
+    if (!opponent?.finished || match?.estado !== 'ACTIVE') {
       opponentFinishedRef.current = false
       return
     }
     if (opponentFinishedRef.current) return
 
     opponentFinishedRef.current = true
-    setStatus('Tu rival termino su tablero. Completa el tuyo para cerrar la partida.', true)
-  }, [opponent?.finished, setStatus])
+    setStatus('Tu rival termino su tablero. Cerrando la partida...', true)
+  }, [match?.estado, opponent?.finished, setStatus])
 
-  useEffect(() => {
-    if (!match || match.estado !== 'FINISHED' || !myGame?.finished || completionProcessedRef.current) return
-
-    completionProcessedRef.current = true
-    handlePvpCompletion()
-  }, [match, myGame])
-
-  async function handlePvpCompletion() {
-    if (!c1AccessToken || !match || !myGame) return
-
-    const score = Number(myGame.score || 0)
-    const resultado = match.ganadorId === user?.sub ? 'victoria' : 'derrota'
-    const xpGain = Math.max(1, Math.floor(score / 10))
-
-    try {
-      const gameSession = await apiClient.createGameSession(c1AccessToken, {
-        juegoId: GAME_ID_SUDOKU,
-        puntaje: score,
-        resultado,
-        cambioElo: 0,
-        tiempo: Number(myGame.durationMs || 0),
-        seedId: match.seed ? String(match.seed) : null,
-        seed: Number(match.seed || 0),
-      })
-
-      await apiClient.addExperience(c1AccessToken, xpGain)
-      await registerSudokuActivity(c1AccessToken, score, gameSession)
-
-      window.dispatchEvent(new CustomEvent('sudokuStatsUpdated', { detail: { juegoId: GAME_ID_SUDOKU } }))
-      setStatus(`XP ganada: ${xpGain}. Resultado PvP: ${resultado}`, true)
-    } catch (error) {
-      console.warn('Error updating PvP stats:', error)
-    }
+  function handleCloseWinnerModal() {
+    setWinnerModalOpen(false)
+    navigate('/', { replace: true })
   }
 
-  async function handleCopyInviteLink() {
+  async function handleCopyJoinCode() {
+    if (!joinCode) {
+      setStatus('Todavía no hay un código disponible para compartir.')
+      return
+    }
+
     try {
-      await navigator.clipboard.writeText(inviteLink)
-      setStatus('Enlace copiado al portapapeles.', true)
+      await navigator.clipboard.writeText(joinCode)
+      setStatus('Codigo PvP copiado al portapapeles.', true)
     } catch {
-      setStatus('No se pudo copiar el enlace. Copialo manualmente.')
+      setStatus('No se pudo copiar el código. Compártelo manualmente.')
     }
   }
 
@@ -553,7 +505,12 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       }
 
       if (result?.matchTerminado) {
-        scheduleHomeRedirect('Sudoku completado. Volviendo al inicio...')
+        setStatus(
+          result?.ganadorId === currentUserId
+            ? 'Completaste tu tablero primero. Confirmando victoria...'
+            : 'La partida terminó. Confirmando resultado final...',
+          result?.ganadorId === currentUserId,
+        )
       } else {
         setStatus(result?.esCorrecta ? 'Movimiento correcto.' : 'Movimiento incorrecto.', Boolean(result?.esCorrecta))
       }
@@ -595,12 +552,12 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
 
   function handleHintUnavailable() {
     if (!difficulty) {
-      setStatus('Las pistas no estan disponibles en PvP.')
+      setStatus('Las pistas no están disponibles en PvP.')
       return
     }
 
     setStatus(
-      `Las pistas no estan disponibles en PvP. En single player, ${difficulty.label} permite ${hintLimit} pista(s).`,
+      `Las pistas no están disponibles en PvP. En single player, ${difficulty.label} permite ${hintLimit} pista(s).`,
     )
   }
   const editableCellCount = useMemo(() => countEditableCells(puzzle), [puzzle])
@@ -642,14 +599,14 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
               <span className="difficulty-label">
                 Pistas en single player: {hintLimit ?? '--'}
               </span>
-              <span className="difficulty-label">Jugador: {user?.email || 'Sesion activa'}</span>
+              <span className="difficulty-label">Jugador: {myDisplayName}</span>
               <span className="difficulty-label">Estado: {match?.estado || 'Cargando'}</span>
               <span className="difficulty-label">Errores: {errorCount}</span>
             </div>
 
             <div className="sudoku-top-right">
               <span className="timer-display">{formatSudokuTime(elapsedSeconds)}</span>
-              {opponent?.finished ? <span className="stat-chip">Rival termino su tablero</span> : null}
+              {match?.estado === 'FINISHED' ? <span className="stat-chip">{winnerDisplayName} gano</span> : null}
               <button className="btn btn-new-game" type="button" disabled={!isActive || forfeiting} onClick={handleForfeit}>
                 {forfeiting ? 'Abandonando...' : 'Abandonar'}
               </button>
@@ -659,19 +616,32 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
           {isWaiting ? (
             <div className="pvp-waiting-card">
               <h2>Esperando rival</h2>
-              <p>Comparte este enlace para que otro jugador entre desde otro navegador.</p>
-              <p>
-                Tablero configurado en {difficulty?.label || 'dificultad clasica'}.
-                {difficulty ? ` En single player permite ${hintLimit} pista(s).` : ''}
-              </p>
-              <div className="pvp-invite-box">
-                <code>{inviteLink}</code>
-              </div>
-              <div className="controls">
-                <button className="btn primary" type="button" onClick={handleCopyInviteLink}>
-                  Copiar enlace
-                </button>
-              </div>
+              {!tournamentId ? (
+                <>
+                  <p>Comparte este código para que otro jugador lo escriba en su página PvP.</p>
+                  <p>
+                    Tablero configurado en {difficulty?.label || 'dificultad clásica'}.
+                    {difficulty ? ` En single player permite ${hintLimit} pista(s).` : ''}
+                  </p>
+                  <div className="pvp-code-box" aria-live="polite">
+                    <span className="pvp-code-label">Codigo de ingreso</span>
+                    <strong className="pvp-code-value">{joinCode || '-----'}</strong>
+                  </div>
+                  <div className="controls">
+                    <button className="btn primary" type="button" onClick={handleCopyJoinCode}>
+                      Copiar código
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p>La partida pertenece a un torneo. Espera a que el rival entre desde el flujo del torneo.</p>
+                  <p>
+                    Tablero configurado en {difficulty?.label || 'dificultad clásica'}.
+                    {difficulty ? ` En single player permite ${hintLimit} pista(s).` : ''}
+                  </p>
+                </>
+              )}
             </div>
           ) : !match ? (
             <div className="pvp-waiting-card">
@@ -700,9 +670,11 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
                 <div className="pvp-opponent-card">
                   <h3>Rival</h3>
                   <p>
-                    {opponent?.finished
-                      ? 'Tu rival ya termino su tablero.'
-                      : 'Recibiras un aviso cuando tu rival termine.'}
+                    {match?.estado === 'FINISHED'
+                      ? `${winnerDisplayName} gano la partida al completar primero el tablero.`
+                      : opponent?.finished
+                        ? 'Tu rival ya termino su tablero. Estamos cerrando la partida.'
+                        : 'Recibiras un aviso cuando tu rival termine.'}
                   </p>
                 </div>
               </SudokuControlsPanel>
@@ -721,10 +693,33 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
               </div>
             ) : null}
             <p className={`status${statusOk ? ' ok' : ''}`}>{status}</p>
-            <p className="mode-copy">Completa tu tablero y supera el progreso del rival.</p>
+            <p className="mode-copy">Gana quien complete primero su tablero.</p>
           </div>
         </div>
       </section>
+
+      {winnerModalOpen && match?.estado === 'FINISHED' ? (
+        <div className="sudoku-pause-overlay" role="alertdialog" aria-modal="true" aria-labelledby="pvp-finish-title">
+          <div className="sudoku-pause-card sudoku-completion-card pvp-finish-card">
+            <p className="section-kicker">{iAmWinner ? 'Victoria PvP' : 'Partida terminada'}</p>
+            <h3 id="pvp-finish-title" className="sudoku-pause-title">
+              {iAmWinner ? 'Ganaste el match' : 'Tenemos un ganador'}
+            </h3>
+            <p className="pvp-finish-winner">{winnerDisplayName}</p>
+            <p className="sudoku-pause-text">
+              {iAmWinner
+                ? 'Completaste tu tablero antes que tu rival y cerraste la partida.'
+                : `${winnerDisplayName} completo el tablero primero y se llevo la victoria.`}
+            </p>
+            <p className="pvp-finish-meta">
+              Tu puntaje: {myGame?.score ?? 0} | Puntaje rival: {opponent?.score ?? 0}
+            </p>
+            <button className="btn primary sudoku-pause-resume-btn" type="button" onClick={handleCloseWinnerModal}>
+              Volver al inicio
+            </button>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

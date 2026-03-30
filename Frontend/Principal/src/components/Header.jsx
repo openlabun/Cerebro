@@ -70,7 +70,7 @@ function Header() {
           onClick={handleSessionAction}
           type="button"
         >
-          {isAuthenticated ? 'Cerrar sesion' : 'Iniciar sesion'}
+          {isAuthenticated ? 'Cerrar sesión' : 'Iniciar sesión'}
         </button>
       </div>
     </header>

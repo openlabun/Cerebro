@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { cloneNotes, useSudokuGame } from '../context/SudokuGameContext.jsx'
 import { useSudokuKeyboardControls } from './useSudokuKeyboardControls.js'
 import { apiClient } from '../services/apiClient.js'
-import { syncSudokuStreak } from '../lib/streaks.js'
 import {
   calculateProgress,
   calculateScore,
@@ -20,6 +19,7 @@ import {
 } from '../lib/sudoku.js'
 
 const GAME_ID_SUDOKU = 'uVsB-k2rjora'
+const STREAK_SESSION_WINDOW_MS = 28 * 60 * 60 * 1000
 
 const ACHIEVEMENT_BADGES = [
   { key: 'first-game', label: 'Primera partida', icon: '🏁', description: 'Completa tu primera partida de Sudoku.' },
@@ -28,18 +28,18 @@ const ACHIEVEMENT_BADGES = [
   { key: 'score-over-500', label: 'Puntaje >500', icon: '🏆', description: 'Alcanza un puntaje mayor a 500 en una partida.' },
 ]
 
-const ACHIEVEMENT_ID_KEY_MAP = {
-  'jNVlXBxVZ4Ik': 'first-game',
-  'eKdjK4OKd_qV': 'five-games',
-  '_8uXFa1YZV-d': 'ten-games',
-}
-
-const ACHIEVEMENT_KEY_ID_MAP = Object.fromEntries(
-  Object.entries(ACHIEVEMENT_ID_KEY_MAP).map(([id, key]) => [key, id])
-)
-
 function normalizeText(value) {
   return String(value || '').trim().toLowerCase()
+}
+
+function mapAchievementNameToBadgeKey(name) {
+  const normalized = normalizeText(name)
+  if (!normalized) return null
+  if (normalized.includes('primera') && normalized.includes('partida')) return 'first-game'
+  if (normalized.includes('5') && normalized.includes('partida')) return 'five-games'
+  if (normalized.includes('10') && normalized.includes('partida')) return 'ten-games'
+  if (normalized.includes('500') && normalized.includes('puntaje')) return 'score-over-500'
+  return null
 }
 
 function getUnlockedKeysByRules(partidasJugadas = 0, bestScore = 0) {
@@ -61,6 +61,21 @@ function toAchievementPopupItems(keys) {
       title: badge.label,
       description: badge.description,
     }))
+}
+
+function parseIsoDate(value) {
+  const date = new Date(String(value || ''))
+  if (Number.isNaN(date.getTime())) return null
+  return date
+}
+
+function getSessionDayKey(value) {
+  const date = parseIsoDate(value)
+  if (!date) return null
+  const yyyy = date.getUTCFullYear()
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(date.getUTCDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
 }
 
 function noteViolatesCurrentBoard(board, row, col, num) {
@@ -174,6 +189,7 @@ export function useLocalSudokuGame() {
   const [unlockedBadges, setUnlockedBadges] = useState(new Set())
   const [showAchievementPopup, setShowAchievementPopup] = useState(false)
   const [achievementPopupItems, setAchievementPopupItems] = useState([])
+  const [streakMessage, setStreakMessage] = useState('')
 
   const {
     puzzle,
@@ -207,22 +223,14 @@ export function useLocalSudokuGame() {
       }
 
       catalog.forEach((item) => {
-        const logroId = String(item?._id || '')
-        if (!logroId) return
-
-        const key = ACHIEVEMENT_ID_KEY_MAP[logroId]
-        if (!key) return
-
-        if (map.has(key) && map.get(key) !== logroId) {
-          // Duplicate key warning removed
-        }
-
-        map.set(key, logroId)
+        const key = mapAchievementNameToBadgeKey(item?.nombre)
+        if (!key || !item?._id) return
+        map.set(key, String(item._id))
       })
 
       achievementCatalogRef.current = map
     } catch (error) {
-      achievementCatalogRef.current = new Map()
+      console.warn('No se pudo cargar el catálogo de logros:', error)
     }
   }
 
@@ -246,38 +254,27 @@ export function useLocalSudokuGame() {
         .map((item) => byId.get(String(item?.logroId || '')))
         .filter(Boolean)
     } catch (error) {
+      console.warn('No se pudieron consultar los logros del usuario:', error)
       return []
     }
   }
 
   async function unlockRemoteAchievements(unlockedKeys) {
     if (!accessToken) return
+    const map = achievementCatalogRef.current
+    if (map.size === 0) return
 
-    const uniqueKeys = Array.from(new Set(unlockedKeys))
-
-    const promises = uniqueKeys
-      .map((badgeKey) => {
-        const logroId = ACHIEVEMENT_KEY_ID_MAP[badgeKey]
-        if (!logroId) {
+    const promises = Array.from(new Set(unlockedKeys))
+      .map((badgeKey) => map.get(badgeKey))
+      .filter(Boolean)
+      .map((logroId) =>
+        apiClient.unlockAchievement(accessToken, logroId).catch((error) => {
+          console.warn(`No se pudo desbloquear logro remoto ${logroId}:`, error)
           return null
-        }
-        return apiClient.unlockAchievement(accessToken, logroId)
-          .then((result) => ({ badgeKey, logroId, result }))
-          .catch((error) => {
-            return null
-          })
-      })
-      .filter(Boolean)
+        }),
+      )
 
-    const outcomes = await Promise.all(promises)
-    // Si ocurre problema de backend, se mantiene el estado local desbloqueado.
-    const unlockedRemote = outcomes
-      .filter(Boolean)
-      .map((item) => item?.badgeKey)
-
-    if (unlockedRemote.length > 0) {
-      setUnlockedBadges((prev) => new Set([...prev, ...unlockedRemote]))
-    }
+    await Promise.all(promises)
   }
 
   async function registerSudokuActivity(nextScore, gameSession) {
@@ -314,14 +311,32 @@ export function useLocalSudokuGame() {
 
       if (gameSession?.jugadoEn) {
         try {
-          const refreshedProfile = await syncSudokuStreak(
-            accessToken,
-            GAME_ID_SUDOKU,
-            gameSession,
-          )
+          const currentPlayedAt = parseIsoDate(gameSession.jugadoEn) || new Date()
+          const previousSession = await apiClient.getLatestGameSession(accessToken, GAME_ID_SUDOKU, {
+            excludeSessionId: String(gameSession._id || ''),
+          })
+
+          const previousPlayedAt = parseIsoDate(previousSession?.jugadoEn)
+          const currentSessionDayKey = getSessionDayKey(gameSession.jugadoEn)
+          const previousSessionDayKey = getSessionDayKey(previousSession?.jugadoEn)
+          const isSameSessionDay = currentSessionDayKey && previousSessionDayKey && currentSessionDayKey === previousSessionDayKey
+          const elapsedMs = previousPlayedAt ? currentPlayedAt.getTime() - previousPlayedAt.getTime() : null
+          const isWithinStreakWindow = elapsedMs !== null && elapsedMs <= STREAK_SESSION_WINDOW_MS
+
+          const shouldReset = elapsedMs !== null && !isSameSessionDay && elapsedMs > STREAK_SESSION_WINDOW_MS
+          const shouldIncrease = elapsedMs === null || shouldReset || (!isSameSessionDay && isWithinStreakWindow)
+
+          if (shouldReset) {
+            await apiClient.resetStreak(accessToken)
+          }
+          if (shouldIncrease) {
+            await apiClient.increaseStreak(accessToken)
+          }
+
+          const refreshedProfile = await apiClient.getMyProfile(accessToken)
           const streak = Number(refreshedProfile?.rachaActual)
           if (!Number.isNaN(streak)) {
-            // Streak message removed
+            setStreakMessage(`Racha actual: ${streak}`)
           }
         } catch (err) {
           console.warn('Error sincronizando racha:', err)
@@ -330,8 +345,9 @@ export function useLocalSudokuGame() {
 
       return { recorded: true, newlyUnlockedAchievements }
     } catch (error) {
+      console.warn('Error registrando actividad de Sudoku:', error)
       if (isVerified === false) {
-        setStatus(`No se pudo sincronizar tu progreso porque la cuenta ${user?.email || 'actual'} no esta verificada.`)
+        setStatus(`No se pudo sincronizar tu progreso porque la cuenta ${user?.email || 'actual'} no está verificada.`)
       }
       return { recorded: false, newlyUnlockedAchievements: [] }
     }
@@ -432,15 +448,17 @@ export function useLocalSudokuGame() {
       await apiClient.addExperience(accessToken, xpGain)
       persistenceOk = true
     } catch (error) {
-      if (isVerified === false) {
-        setStatus(`No se pudo sincronizar puntaje, XP o ELO porque la cuenta ${user?.email || 'actual'} no esta verificada.`)
+      console.warn('No se pudo persistir la sesión de Sudoku:', error)
+      if (error?.status === 401) {
+        setStatus('No se pudo guardar la partida porque tu sesión expiró. Intenta iniciar sesión de nuevo.')
+      } else if (isVerified === false) {
+        setStatus(`No se pudo sincronizar puntaje, XP o ELO porque la cuenta ${user?.email || 'actual'} no está verificada.`)
+      } else {
+        setStatus('No se pudo sincronizar la partida en este momento. Intenta de nuevo en unos segundos.')
       }
     }
 
     await registerSudokuActivity(nextScore, gameSession)
-    if (persistenceOk) {
-      window.dispatchEvent(new CustomEvent('sudokuStatsUpdated', { detail: { juegoId: GAME_ID_SUDOKU } }))
-    }
     if (persistenceOk && (xpGain > 0 || eloChange !== 0)) {
       setStatus(`XP ganada: ${xpGain}. ELO cambio: ${eloChange} (${resultado}).`, true)
     }
@@ -605,7 +623,7 @@ export function useLocalSudokuGame() {
     }
 
     if (hintsUsed >= hintLimit) {
-      setStatus(`Ya alcanzaste el limite de ${hintLimit} pista(s) para esta dificultad.`)
+      setStatus(`Ya alcanzaste el límite de ${hintLimit} pista(s) para esta dificultad.`)
       return
     }
 
@@ -660,6 +678,7 @@ export function useLocalSudokuGame() {
     hintLimit,
     showAchievementPopup,
     achievementPopupItems,
+    streakMessage,
     setPaused,
     setNoteMode,
     setHighlightEnabled,

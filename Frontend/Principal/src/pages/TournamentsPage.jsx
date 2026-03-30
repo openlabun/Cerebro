@@ -6,11 +6,12 @@ import {
   buildTournamentInviteLink,
   canManageTournament,
   formatTournamentDate,
-  getTournamentOwnerLabel,
   formatTournamentState,
   formatTournamentType,
+  getTournamentOwnerLabel,
   getTournamentStatusTone,
   getTournamentVisibilityLabel,
+  isOfficialTournament,
   summarizeTournamentConfig,
   tournamentStateOptions,
   tournamentTypeOptions,
@@ -20,6 +21,10 @@ import '../styles/tournaments.css'
 
 function sortTournaments(rows, user) {
   return [...(rows || [])].sort((left, right) => {
+    const leftOfficial = isOfficialTournament(left) ? 1 : 0
+    const rightOfficial = isOfficialTournament(right) ? 1 : 0
+    if (leftOfficial !== rightOfficial) return rightOfficial - leftOfficial
+
     const leftOwned = canManageTournament(left, user) ? 1 : 0
     const rightOwned = canManageTournament(right, user) ? 1 : 0
 
@@ -41,7 +46,6 @@ function TournamentsPage() {
   const [creationOpen, setCreationOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [filters, setFilters] = useState({
-    scope: 'all',
     search: '',
     state: '',
     type: '',
@@ -68,35 +72,6 @@ function TournamentsPage() {
   useEffect(() => {
     loadTournaments()
   }, [accessToken, user?.id, user?.sub])
-
-  const effectiveScope = isAuthenticated ? filters.scope : 'all'
-  const publicAccessUnavailable =
-    !isAuthenticated && fetchError.includes('ROBLE_PUBLIC_READ_TOKEN')
-  const myTournaments = tournaments.filter((row) => canManageTournament(row, user))
-  const summary = {
-    mine: myTournaments.length,
-    active: tournaments.filter((row) => String(row?.estado || '').toUpperCase() === 'ACTIVO').length,
-    scheduled: tournaments.filter((row) => String(row?.estado || '').toUpperCase() === 'PROGRAMADO').length,
-    private: tournaments.filter((row) => row?.esPublico === false).length,
-  }
-
-  const filteredTournaments = tournaments.filter((row) => {
-    const name = String(row?.nombre || '').toLowerCase()
-    const description = String(row?.descripcion || '').toLowerCase()
-    const state = String(row?.estado || '').trim().toUpperCase()
-    const type = String(row?.tipo || '').trim().toUpperCase()
-    const visibility = row?.esPublico === false ? 'PRIVADO' : 'PUBLICO'
-    const matchesMine = effectiveScope !== 'mine' || canManageTournament(row, user)
-    const matchesSearch =
-      !filters.search ||
-      name.includes(filters.search.toLowerCase()) ||
-      description.includes(filters.search.toLowerCase())
-    const matchesState = !filters.state || state === filters.state
-    const matchesType = !filters.type || type === filters.type
-    const matchesVisibility = !filters.visibility || visibility === filters.visibility
-
-    return matchesMine && matchesSearch && matchesState && matchesType && matchesVisibility
-  })
 
   async function handleCreateTournament(payload) {
     setCreating(true)
@@ -128,6 +103,179 @@ function TournamentsPage() {
     }
   }
 
+  const publicAccessUnavailable =
+    !isAuthenticated && fetchError.includes('ROBLE_PUBLIC_READ_TOKEN')
+  const showGuestPublicIntro = !isAuthenticated && !publicAccessUnavailable
+  const showGuestRestrictedState = !isAuthenticated && publicAccessUnavailable
+
+  const filteredTournaments = tournaments.filter((row) => {
+    const name = String(row?.nombre || '').toLowerCase()
+    const description = String(row?.descripcion || '').toLowerCase()
+    const state = String(row?.estado || '').trim().toUpperCase()
+    const type = String(row?.tipo || '').trim().toUpperCase()
+    const visibility = row?.esPublico === false ? 'PRIVADO' : 'PUBLICO'
+    const matchesSearch =
+      !filters.search ||
+      name.includes(filters.search.toLowerCase()) ||
+      description.includes(filters.search.toLowerCase())
+    const matchesState = !filters.state || state === filters.state
+    const matchesType = !filters.type || type === filters.type
+    const matchesVisibility = !filters.visibility || visibility === filters.visibility
+
+    return matchesSearch && matchesState && matchesType && matchesVisibility
+  })
+
+  const officialTournaments = filteredTournaments.filter((row) => isOfficialTournament(row))
+  const regularTournaments = filteredTournaments.filter((row) => !isOfficialTournament(row))
+
+  const ownTournaments = isAuthenticated
+    ? regularTournaments.filter((row) => canManageTournament(row, user))
+    : []
+  const joinedTournaments = isAuthenticated
+    ? regularTournaments.filter((row) => row?.inscrito === true && !canManageTournament(row, user))
+    : []
+  const otherTournaments = isAuthenticated
+    ? regularTournaments.filter((row) => !canManageTournament(row, user) && row?.inscrito !== true)
+    : regularTournaments
+
+  function renderTournamentCard(tournament, sectionKey) {
+    const isOwner = canManageTournament(tournament, user)
+    const configSummary = summarizeTournamentConfig(tournament.configuracion)
+
+    return (
+      <article key={`${sectionKey}-${tournament._id}`} className="board-card tournament-card tournament-card--compact">
+        <div className="tournament-card-top">
+          <div>
+            <p className="section-kicker">{formatTournamentType(tournament.tipo)}</p>
+            <h3>{tournament.nombre || 'Torneo sin nombre'}</h3>
+          </div>
+
+          <div className="tournament-badge-row">
+            {isOfficialTournament(tournament) ? (
+              <span className="tournament-badge tournament-badge--warning">Oficial</span>
+            ) : null}
+            {tournament?.inscrito === true && !isOwner ? (
+              <span className="tournament-badge tournament-badge--success">Inscrito</span>
+            ) : null}
+            {isOwner ? <span className="tournament-badge tournament-badge--info">Propio</span> : null}
+            <span className={`tournament-badge tournament-badge--${getTournamentStatusTone(tournament.estado)}`}>
+              {formatTournamentState(tournament.estado)}
+            </span>
+          </div>
+        </div>
+
+        <p className="mode-copy">{tournament.descripcion || 'Sin descripción.'}</p>
+
+        <dl className="tournament-meta-list">
+          <div>
+            <dt>Inicio</dt>
+            <dd>{formatTournamentDate(tournament.fechaInicio)}</dd>
+          </div>
+          <div>
+            <dt>Fin</dt>
+            <dd>{formatTournamentDate(tournament.fechaFin)}</dd>
+          </div>
+          <div>
+            <dt>Visibilidad</dt>
+            <dd>{getTournamentVisibilityLabel(tournament)}</dd>
+          </div>
+          <div>
+            <dt>Creador</dt>
+            <dd>{getTournamentOwnerLabel(tournament, user)}</dd>
+          </div>
+        </dl>
+
+        <div className="tournament-chip-row">
+          {configSummary.length ? (
+            configSummary.slice(0, 3).map((item) => (
+              <span key={`${tournament._id}-${item}`} className="stat-chip">
+                {item}
+              </span>
+            ))
+          ) : (
+            <span className="stat-chip">Sin reglas resumidas</span>
+          )}
+        </div>
+
+        {isOwner && tournament.esPublico === false && tournament.codigoAcceso ? (
+          <div className="tournament-secret-box">
+            <span>Codigo privado</span>
+            <strong>{tournament.codigoAcceso}</strong>
+            <div className="tournament-card-actions">
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() =>
+                  handleCopyValue(
+                    tournament.codigoAcceso,
+                    'Codigo de acceso copiado al portapapeles.',
+                  )
+                }
+              >
+                Copiar código
+              </button>
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() =>
+                  handleCopyValue(
+                    buildTournamentInviteLink(tournament._id, tournament.codigoAcceso),
+                    'Enlace de invitación copiado al portapapeles.',
+                  )
+                }
+              >
+                Copiar invitación
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="tournament-card-actions">
+          <Link className="btn primary" to={`/torneos/${tournament._id}`}>
+            {isOwner ? 'Gestionar' : 'Abrir'}
+          </Link>
+        </div>
+      </article>
+    )
+  }
+
+  function renderTournamentSection({
+    sectionKey,
+    title,
+    kicker,
+    rows,
+    emptyTitle,
+    emptyText,
+    panelClassName = '',
+  }) {
+    const panelClasses = ['board-card', 'tournament-panel', 'tournament-column-panel', panelClassName]
+      .filter(Boolean)
+      .join(' ')
+
+    return (
+      <section className={panelClasses}>
+        <div className="section-heading tournament-panel-heading">
+          <div>
+            <p className="section-kicker">{kicker}</p>
+            <h2>{title}</h2>
+          </div>
+          <span className="chip">{rows.length}</span>
+        </div>
+
+        {rows.length ? (
+          <div className="tournament-card-list">
+            {rows.map((tournament) => renderTournamentCard(tournament, sectionKey))}
+          </div>
+        ) : (
+          <div className="tournament-empty tournament-empty--compact">
+            <h3>{emptyTitle}</h3>
+            <p>{emptyText}</p>
+          </div>
+        )}
+      </section>
+    )
+  }
+
   return (
     <main className="tournaments-page">
       <section className="board-card tournaments-hero">
@@ -135,8 +283,8 @@ function TournamentsPage() {
           <p className="eyebrow">Tus torneos</p>
           <h1>Organiza competencias desde la misma app</h1>
           <p className="lead">
-            Crea torneos publicos o privados, define reglas, programa fechas y administra el
-            ciclo de vida sin salir de la app principal.
+            Consulta solo los torneos programados y activos, separa rápido los tuyos, los que ya
+            jugas y el resto del panel.
           </p>
         </div>
 
@@ -157,7 +305,7 @@ function TournamentsPage() {
               ? creationOpen
                 ? 'Ocultar formulario'
                 : 'Crear torneo'
-              : 'Iniciar sesion para crear'}
+              : 'Iniciar sesión para crear'}
           </button>
           <button className="btn ghost" type="button" onClick={loadTournaments} disabled={loading}>
             {loading ? 'Actualizando...' : 'Actualizar lista'}
@@ -165,43 +313,43 @@ function TournamentsPage() {
         </div>
       </section>
 
-      {isAuthenticated ? null : (
+      {showGuestPublicIntro ? (
         <section className="board-card tournament-panel">
           <div className="section-heading tournament-panel-heading">
             <div>
               <p className="section-kicker">Explora libremente</p>
-              <h2>Puedes navegar los torneos sin iniciar sesion</h2>
+              <h2>Puedes navegar los torneos sin iniciar sesión</h2>
             </div>
           </div>
           <p className="mode-copy">
-            La lista, los filtros y el detalle quedan abiertos. Para crear un torneo o unirte a
-            uno, primero debes iniciar sesion.
+            Para crear un torneo o unirte a uno, primero debes iniciar sesión.
           </p>
         </section>
-      )}
+      ) : null}
 
-      <section className="tournament-summary-grid">
-        <article className="board-card tournament-summary-card">
-          <span className="section-kicker">Panel propio</span>
-          <strong>{summary.mine}</strong>
-          <p>Torneos creados por ti</p>
-        </article>
-        <article className="board-card tournament-summary-card">
-          <span className="section-kicker">En curso</span>
-          <strong>{summary.active}</strong>
-          <p>Torneos activos ahora mismo</p>
-        </article>
-        <article className="board-card tournament-summary-card">
-          <span className="section-kicker">Programados</span>
-          <strong>{summary.scheduled}</strong>
-          <p>Listos para arrancar</p>
-        </article>
-        <article className="board-card tournament-summary-card">
-          <span className="section-kicker">Privados</span>
-          <strong>{summary.private}</strong>
-          <p>Con acceso protegido por codigo</p>
-        </article>
-      </section>
+      {showGuestRestrictedState ? (
+        <section className="board-card tournament-panel">
+          <div className="section-heading tournament-panel-heading">
+            <div>
+              <p className="section-kicker">Acceso restringido</p>
+              <h2>Debes iniciar sesión para ver los torneos en este entorno</h2>
+            </div>
+          </div>
+          <p className="mode-copy">
+            La lectura pública no está configurada todavía. Si entras con tu cuenta, podrás ver los
+            torneos disponibles y administrar los tuyos.
+          </p>
+          <div className="tournament-card-actions">
+            <button
+              className="btn primary"
+              type="button"
+              onClick={() => navigate('/login', { state: { from: { pathname: '/torneos' } } })}
+            >
+              Iniciar sesión
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       {isAuthenticated && creationOpen ? (
         <section className="board-card tournament-panel">
@@ -221,214 +369,156 @@ function TournamentsPage() {
         </section>
       ) : null}
 
-      <section className="board-card tournament-panel">
-        <div className="section-heading tournament-panel-heading">
-          <div>
-            <p className="section-kicker">Gestion</p>
-            <h2>Listado de torneos</h2>
+      {showGuestRestrictedState ? null : (
+        <section className="board-card tournament-panel">
+          <div className="section-heading tournament-panel-heading">
+            <div>
+              <p className="section-kicker">Filtros</p>
+              <h2>Ajusta lo que quieres ver</h2>
+            </div>
+            <span className="chip">{filteredTournaments.length} visibles</span>
           </div>
-          <span className="chip">{filteredTournaments.length} visibles</span>
-        </div>
 
-        <div className="tournament-filters">
-          <label className="auth-field">
-            <span>Vista</span>
-            <select
-              value={effectiveScope}
-              onChange={(event) => setFilters((current) => ({ ...current, scope: event.target.value }))}
-              disabled={!isAuthenticated}
-            >
-              <option value="all">Todos</option>
-              {isAuthenticated ? <option value="mine">Solo los mios</option> : null}
-            </select>
-          </label>
+          <div className="tournament-filters">
+            <label className="auth-field tournament-filter-search">
+              <span>Buscar</span>
+              <input
+                type="search"
+                value={filters.search}
+                onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                placeholder="Nombre o descripción"
+              />
+            </label>
 
-          <label className="auth-field tournament-filter-search">
-            <span>Buscar</span>
-            <input
-              type="search"
-              value={filters.search}
-              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              placeholder="Nombre o descripcion"
-            />
-          </label>
+            <label className="auth-field">
+              <span>Estado</span>
+              <select
+                value={filters.state}
+                onChange={(event) => setFilters((current) => ({ ...current, state: event.target.value }))}
+              >
+                <option value="">Todos</option>
+                {tournamentStateOptions
+                  .filter((option) => option.value === 'PROGRAMADO' || option.value === 'ACTIVO')
+                  .map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+              </select>
+            </label>
 
-          <label className="auth-field">
-            <span>Estado</span>
-            <select
-              value={filters.state}
-              onChange={(event) => setFilters((current) => ({ ...current, state: event.target.value }))}
-            >
-              <option value="">Todos</option>
-              {tournamentStateOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="auth-field">
+              <span>Tipo</span>
+              <select
+                value={filters.type}
+                onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}
+              >
+                <option value="">Todos</option>
+                {tournamentTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="auth-field">
-            <span>Tipo</span>
-            <select
-              value={filters.type}
-              onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}
-            >
-              <option value="">Todos</option>
-              {tournamentTypeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="auth-field">
-            <span>Visibilidad</span>
-            <select
-              value={filters.visibility}
-              onChange={(event) => setFilters((current) => ({ ...current, visibility: event.target.value }))}
-            >
-              <option value="">Todas</option>
-              <option value="PUBLICO">Publicos</option>
-              <option value="PRIVADO">Privados</option>
-            </select>
-          </label>
-        </div>
-
-        {pageStatus ? <p className="status ok">{pageStatus}</p> : null}
-        {fetchError && !publicAccessUnavailable ? <p className="status error">{fetchError}</p> : null}
-
-        {loading ? (
-          <div className="tournament-empty">
-            <h3>Cargando torneos...</h3>
-            <p>Traemos la informacion mas reciente para que puedas administrarla.</p>
+            <label className="auth-field">
+              <span>Visibilidad</span>
+              <select
+                value={filters.visibility}
+                onChange={(event) => setFilters((current) => ({ ...current, visibility: event.target.value }))}
+              >
+                <option value="">Todas</option>
+                <option value="PUBLICO">Publicos</option>
+                <option value="PRIVADO">Privados</option>
+              </select>
+            </label>
           </div>
-        ) : publicAccessUnavailable ? (
-          <div className="tournament-empty">
-            <h3>Debes iniciar sesion para ver los torneos en este entorno</h3>
-            <p>
-              La lectura publica no esta configurada todavia. Si entras con tu cuenta, podras ver
-              los torneos disponibles y administrar los tuyos.
-            </p>
-            <button
-              className="btn primary"
-              type="button"
-              onClick={() => navigate('/login', { state: { from: { pathname: '/torneos' } } })}
-            >
-              Iniciar sesion
-            </button>
-          </div>
-        ) : filteredTournaments.length ? (
-          <div className="tournament-grid">
-            {filteredTournaments.map((tournament) => {
-              const isOwner = canManageTournament(tournament, user)
-              const configSummary = summarizeTournamentConfig(tournament.configuracion)
 
-              return (
-                <article key={tournament._id} className="board-card tournament-card">
-                  <div className="tournament-card-top">
-                    <div>
-                      <p className="section-kicker">#{String(tournament._id || '').slice(-6)}</p>
-                      <h3>{tournament.nombre || 'Torneo sin nombre'}</h3>
-                    </div>
+          {pageStatus ? <p className="status ok">{pageStatus}</p> : null}
+          {fetchError && !publicAccessUnavailable ? <p className="status error">{fetchError}</p> : null}
+        </section>
+      )}
 
-                    <div className="tournament-badge-row">
-                      <span className={`tournament-badge tournament-badge--${getTournamentStatusTone(tournament.estado)}`}>
-                        {formatTournamentState(tournament.estado)}
-                      </span>
-                      <span className="tournament-badge tournament-badge--outline">{formatTournamentType(tournament.tipo)}</span>
-                    </div>
-                  </div>
+      {loading ? (
+        <section className="board-card tournament-empty">
+          <h3>Cargando torneos...</h3>
+          <p>Traemos la información más reciente para que puedas administrarla.</p>
+        </section>
+      ) : null}
 
-                  <p className="mode-copy">{tournament.descripcion || 'Sin descripcion.'}</p>
+      {!loading && isAuthenticated ? (
+        <section className="tournament-layout">
+          {officialTournaments.length
+            ? renderTournamentSection({
+                sectionKey: 'official',
+                title: 'Torneos oficiales',
+                kicker: 'Prioridad',
+                rows: officialTournaments,
+                emptyTitle: 'Aún no hay torneos oficiales visibles',
+                emptyText: 'Cuando administración publique uno, aparecerá primero aquí.',
+                panelClassName: 'tournament-column-panel--wide',
+              })
+            : null}
 
-                  <dl className="tournament-meta-list">
-                    <div>
-                      <dt>Visibilidad</dt>
-                      <dd>{getTournamentVisibilityLabel(tournament)}</dd>
-                    </div>
-                    <div>
-                      <dt>Inicio</dt>
-                      <dd>{formatTournamentDate(tournament.fechaInicio)}</dd>
-                    </div>
-                    <div>
-                      <dt>Fin</dt>
-                      <dd>{formatTournamentDate(tournament.fechaFin)}</dd>
-                    </div>
-                    <div>
-                      <dt>Creador</dt>
-                      <dd>{getTournamentOwnerLabel(tournament, user)}</dd>
-                    </div>
-                  </dl>
+          {renderTournamentSection({
+            sectionKey: 'joined',
+            title: 'Torneos donde estás inscrito',
+            kicker: 'Inscripciones',
+            rows: joinedTournaments,
+            emptyTitle: 'Aún no tienes inscripciones',
+            emptyText: 'Cuando te unas a un torneo activo o programado, aparecerá aquí.',
+            panelClassName: 'tournament-column-panel--wide',
+          })}
 
-                  <div className="tournament-chip-row">
-                    {configSummary.length ? (
-                      configSummary.map((item) => (
-                        <span key={`${tournament._id}-${item}`} className="stat-chip">
-                          {item}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="stat-chip">Configuracion flexible</span>
-                    )}
-                  </div>
+          <div className="tournament-columns tournament-columns--pair">
+            {renderTournamentSection({
+              sectionKey: 'mine',
+              title: 'Torneos propios',
+              kicker: 'Gestión',
+              rows: ownTournaments,
+              emptyTitle: 'No tienes torneos visibles',
+              emptyText: 'Crea uno nuevo o programa uno para que aparezca en tu panel.',
+            })}
 
-                  {isOwner && tournament.esPublico === false && tournament.codigoAcceso ? (
-                    <div className="tournament-secret-box">
-                      <span>Codigo de acceso</span>
-                      <strong>{tournament.codigoAcceso}</strong>
-                      <div className="tournament-card-actions">
-                        <button
-                          className="btn ghost"
-                          type="button"
-                          onClick={() =>
-                            handleCopyValue(
-                              tournament.codigoAcceso,
-                              'Codigo de acceso copiado al portapapeles.',
-                            )
-                          }
-                        >
-                          Copiar codigo
-                        </button>
-                        <button
-                          className="btn ghost"
-                          type="button"
-                          onClick={() =>
-                            handleCopyValue(
-                              buildTournamentInviteLink(
-                                tournament._id,
-                                tournament.codigoAcceso,
-                              ),
-                              'Enlace de invitacion copiado al portapapeles.',
-                            )
-                          }
-                        >
-                          Copiar invitacion
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div className="tournament-card-actions">
-                    <Link className="btn primary" to={`/torneos/${tournament._id}`}>
-                      {isOwner ? 'Administrar' : 'Ver detalle'}
-                    </Link>
-                  </div>
-                </article>
-              )
+            {renderTournamentSection({
+              sectionKey: 'others',
+              title: 'Demás torneos',
+              kicker: 'Explorar',
+              rows: otherTournaments,
+              emptyTitle: 'No hay más torneos con este filtro',
+              emptyText: 'Prueba quitando filtros o espera nuevos torneos activos o programados.',
             })}
           </div>
-        ) : (
-          <div className="tournament-empty">
-            <h3>No hay torneos para ese filtro</h3>
-            <p>
-              Prueba cambiando el scope o crea uno nuevo para empezar a administrar tu propio
-              circuito.
-            </p>
-          </div>
-        )}
-      </section>
+        </section>
+      ) : null}
+
+      {!loading && !isAuthenticated && !publicAccessUnavailable ? (
+        <section className="tournament-layout">
+          {officialTournaments.length
+            ? renderTournamentSection({
+                sectionKey: 'official-public',
+                title: 'Torneos oficiales',
+                kicker: 'Prioridad',
+                rows: officialTournaments,
+                emptyTitle: 'Aún no hay torneos oficiales visibles',
+                emptyText: 'Cuando administración publique uno, aparecerá primero aquí.',
+                panelClassName: 'tournament-column-panel--wide',
+              })
+            : null}
+
+          <section className="tournament-columns tournament-columns--single">
+            {renderTournamentSection({
+              sectionKey: 'public',
+              title: 'Torneos disponibles',
+              kicker: 'Explorar',
+              rows: otherTournaments,
+              emptyTitle: 'No hay torneos con este filtro',
+              emptyText: 'Prueba cambiando los filtros o vuelve más tarde.',
+            })}
+          </section>
+        </section>
+      ) : null}
     </main>
   )
 }
