@@ -3,14 +3,18 @@ import { resolveConfig } from '../config.js'
 function buildUrl(baseUrl, path) {
   const config = resolveConfig()
   const normalizedPath = String(path || '').replace(/^\/+/, '')
-  const resolvedBaseUrl =
-    baseUrl === 'pvp'
-      ? config.PVP_API_BASE_URL
-      : baseUrl === 'pvp-auth'
-        ? config.PVP_AUTH_API_BASE_URL
-        : baseUrl === 'pvp-webhook'
-          ? config.PVP_WEBHOOK_API_BASE_URL
-        : config.AUTH_API_BASE_URL
+  let resolvedBaseUrl = config.AUTH_API_BASE_URL
+
+  if (baseUrl === 'pvp') {
+    resolvedBaseUrl = config.PVP_API_BASE_URL
+  } else if (baseUrl === 'pvp-auth') {
+    resolvedBaseUrl = config.PVP_AUTH_API_BASE_URL
+  } else if (baseUrl === 'pvp-webhook') {
+    resolvedBaseUrl = config.PVP_WEBHOOK_API_BASE_URL
+  } else if (baseUrl === 'admin-live') {
+    resolvedBaseUrl = config.ADMIN_LIVE_API_BASE_URL
+  }
+
   return normalizedPath ? `${resolvedBaseUrl}/${normalizedPath}` : resolvedBaseUrl
 }
 
@@ -26,11 +30,11 @@ function parseResponse(text) {
 
 function getFriendlyStatusMessage(status) {
   if (status === 401) {
-    return 'Tu sesion no es valida o expiro. Inicia sesion nuevamente.'
+    return 'Tu sesión no es válida o expiró. Inicia sesión nuevamente.'
   }
 
   if (status === 403) {
-    return 'La solicitud fue rechazada por el servicio (403). Si estabas iniciando sesion, revisa tu red, VPN o filtros de seguridad.'
+    return 'La solicitud fue rechazada por el servicio (403). Si estabas iniciando sesión, revisa tu red, VPN o filtros de seguridad.'
   }
 
   if (status === 502 || status === 503 || status === 504) {
@@ -73,7 +77,7 @@ function getStoredAccessTokenForBase(baseUrl) {
   const session = authStorage.getSession()
   if (!session) return null
 
-  if (baseUrl === 'auth') {
+  if (baseUrl === 'auth' || baseUrl === 'admin-live') {
     return session.c1AccessToken || session.accessToken || null
   }
 
@@ -110,6 +114,7 @@ async function performRequest(path, options = {}, tokenOverride = null) {
 
   const response = await fetch(buildUrl(baseUrl, path), {
     method,
+    cache: 'no-store',
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     signal,
@@ -132,7 +137,7 @@ async function refreshSessionForBase(baseUrl) {
   const session = authStorage.getSession()
   if (!session) return null
 
-  if (baseUrl === 'auth') {
+  if (baseUrl === 'auth' || baseUrl === 'admin-live') {
     const refreshToken = session.c1RefreshToken || session.refreshToken
     if (!refreshToken) return null
 
@@ -508,12 +513,29 @@ export const apiClient = {
     })
   },
 
+  joinPvpMatchByCode(payload = {}, accessToken) {
+    return request('match/join-by-code', {
+      method: 'POST',
+      baseUrl: 'pvp',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
   getPvpMatch(matchId, accessToken, signal) {
     return request(`match/${matchId}`, {
       method: 'GET',
       baseUrl: 'pvp',
       token: accessToken,
       signal,
+    })
+  },
+
+  getMyPvpRanking(accessToken) {
+    return request('ranking/me', {
+      method: 'GET',
+      baseUrl: 'pvp',
+      token: accessToken,
     })
   },
 
@@ -560,7 +582,7 @@ export const apiClient = {
   },
 
   getMyAchievements(accessToken) {
-    return request('my-achievements', {
+    return request('achievements/me', {
       method: 'GET',
       baseUrl: 'auth',
       token: accessToken,
@@ -568,10 +590,11 @@ export const apiClient = {
   },
 
   unlockAchievement(accessToken, logroId) {
-    return request(`achievements/${logroId}/unlock`, {
+    return request('achievements/unlock', {
       method: 'POST',
       baseUrl: 'auth',
       token: accessToken,
+      body: { logroId },
     })
   },
 
@@ -596,8 +619,10 @@ export const apiClient = {
   getLatestGameSession(accessToken, gameId, options = {}) {
     const normalizedGameId = String(gameId || '').trim()
     const excludeSessionId = String(options.excludeSessionId || '').trim()
+    const excludePlayedAt = String(options.excludePlayedAt || '').trim()
     const query = new URLSearchParams({ juegoId: normalizedGameId })
     if (excludeSessionId) query.set('excludeSessionId', excludeSessionId)
+    if (excludePlayedAt) query.set('excludePlayedAt', excludePlayedAt)
 
     return request(`game-sessions/latest?${query.toString()}`, {
       method: 'GET',
@@ -619,15 +644,24 @@ export const apiClient = {
   },
 
   increaseStreak(accessToken) {
-    return request('streak/increase', {
+    return request('streaks/increase', {
       method: 'POST',
       baseUrl: 'auth',
       token: accessToken,
     })
   },
 
+  sendLiveHeartbeat(payload, accessToken) {
+    return request('heartbeat', {
+      method: 'POST',
+      baseUrl: 'admin-live',
+      token: accessToken,
+      body: payload,
+    })
+  },
+
   resetStreak(accessToken) {
-    return request('streak/reset', {
+    return request('streaks/reset', {
       method: 'POST',
       baseUrl: 'auth',
       token: accessToken,

@@ -4,6 +4,7 @@ import DifficultySelect from '../components/DifficultySelect.jsx'
 import { SudokuGameProvider } from '../context/SudokuGameContext.jsx'
 import { formatSudokuTime } from '../context/SudokuGameContext.jsx'
 import { useLocalSudokuGame } from '../hooks/useLocalSudokuGame.js'
+import { useLiveHeartbeat } from '../hooks/useLiveHeartbeat.js'
 import { difficultyLevels } from '../lib/sudoku.js'
 
 function SudokuPageContent() {
@@ -29,7 +30,6 @@ function SudokuPageContent() {
     correctCounts,
     showAchievementPopup,
     achievementPopupItems,
-    streakMessage,
     setPaused,
     setNoteMode,
     setHighlightEnabled,
@@ -39,6 +39,12 @@ function SudokuPageContent() {
     applyHint,
     clearSelectedCell,
   } = useLocalSudokuGame()
+
+  useLiveHeartbeat({
+    mode: 'sudoku',
+    difficulty: difficulty.label,
+    state: completed ? 'completed' : paused ? 'paused' : 'playing',
+  })
 
   return (
     <main>
@@ -119,7 +125,7 @@ function SudokuPageContent() {
         <div className="sudoku-pause-overlay" role="dialog" aria-modal="true">
           <div className="sudoku-pause-card">
             <h3 className="sudoku-pause-title">Juego en pausa</h3>
-            <p className="sudoku-pause-text">El tiempo esta detenido. Presiona reanudar para continuar.</p>
+            <p className="sudoku-pause-text">El tiempo está detenido. Presiona reanudar para continuar.</p>
             <button className="btn primary sudoku-pause-resume-btn" type="button" onClick={() => setPaused(false)}>
               Reanudar
             </button>
@@ -139,12 +145,6 @@ function SudokuPageContent() {
               Jugar otra vez
             </button>
           </div>
-        </div>
-      ) : null}
-
-      {streakMessage ? (
-        <div className="sudoku-streak-note" role="status" aria-live="polite">
-          {streakMessage}
         </div>
       ) : null}
 

@@ -12,6 +12,42 @@ export class PersonalTrackingBootstrapService {
 
   constructor(private readonly robleService: RobleService) {}
 
+  private normalizeName(nombre?: string): string {
+    const normalized = String(nombre ?? '').trim();
+    if (
+      !normalized ||
+      normalized === 'undefined' ||
+      normalized === 'null'
+    ) {
+      return 'Usuario';
+    }
+    return normalized;
+  }
+
+  private normalizeEmail(correo?: string): string {
+    const normalized = String(correo ?? '').trim().toLowerCase();
+    if (
+      !normalized ||
+      normalized === 'undefined' ||
+      normalized === 'null'
+    ) {
+      return '';
+    }
+    return normalized;
+  }
+
+  private shouldHydrateExistingName(
+    existingName: string | undefined,
+    incomingName: string,
+  ): boolean {
+    const current = String(existingName ?? '').trim();
+    if (!current || current === 'undefined' || current === 'null') {
+      return incomingName !== 'Usuario';
+    }
+
+    return current === 'Usuario' && incomingName !== 'Usuario';
+  }
+
   private isInvalidUserId(userId: string): boolean {
     const normalized = String(userId ?? '').trim();
     return !normalized || normalized === 'undefined' || normalized === 'null';
@@ -36,6 +72,8 @@ export class PersonalTrackingBootstrapService {
     let stage = 'read-profile';
     try {
       this.logger.log(`ensureInitialized iniciado para usuarioId=${userId}`);
+      const normalizedName = this.normalizeName(nombre);
+      const normalizedEmail = this.normalizeEmail(correo);
 
       const profiles: PerfilRow[] = await this.robleService.read<PerfilRow>(
         accessToken,
@@ -45,12 +83,30 @@ export class PersonalTrackingBootstrapService {
       const existingProfile: PerfilRow | undefined = profiles[0];
 
       if (existingProfile) {
+        if (
+          existingProfile._id &&
+          this.shouldHydrateExistingName(
+            existingProfile.nombre,
+            normalizedName,
+          )
+        ) {
+          stage = 'hydrate-existing-profile-name';
+          await this.robleService.update<PerfilRow>(
+            accessToken,
+            'Perfil',
+            '_id',
+            existingProfile._id,
+            { nombre: normalizedName },
+          );
+          this.logger.log(
+            `Perfil existente hidratado con nombre para usuarioId=${userId}.`,
+          );
+        }
+
         this.logger.log(
           `Perfil ya existe para usuarioId=${userId}. No se crea bootstrap.`,
         );
-        return;
-      }
-
+      } else {
       stage = 'insert-profile';
       this.logger.warn(
         `Perfil no existe para usuarioId=${userId}. Se creara registro base.`,
@@ -61,8 +117,8 @@ export class PersonalTrackingBootstrapService {
         [
           {
             usuarioId: userId,
-            nombre: String(nombre ?? '').trim() || 'Usuario',
-            correo: String(correo ?? '').trim().toLowerCase(),
+            nombre: normalizedName,
+            correo: normalizedEmail,
             nivel: 1,
             experiencia: 0,
             rachaActual: 0,
@@ -72,7 +128,7 @@ export class PersonalTrackingBootstrapService {
           },
         ],
       );
-
+      }
       stage = 'read-games';
       const juegos: JuegoRow[] = await this.robleService.read<JuegoRow>(
         accessToken,
@@ -87,20 +143,43 @@ export class PersonalTrackingBootstrapService {
         return;
       }
 
+      stage = 'read-existing-game-stats';
+      const existingStats =
+        await this.robleService.read<EstadisticasJuegoUsuarioRow>(
+          accessToken,
+          'EstadisticasJuegoUsuario',
+          { usuarioId: userId },
+        );
+
+      const existingGameIds = new Set(
+        (existingStats || [])
+          .map((row) => String(row?.juegoId || '').trim())
+          .filter(Boolean),
+      );
+
       stage = 'insert-game-stats';
       const statsRecords: Array<Omit<EstadisticasJuegoUsuarioRow, '_id'>> =
-        juegos.map((juego) => {
-          return {
-            usuarioId: userId,
-            juegoId: juego._id,
-            elo: 0,
-            partidasJugadas: 0,
-            victorias: 0,
-            derrotas: 0,
-            empates: 0,
-            ligaId: null,
-          };
-        });
+        juegos
+          .filter((juego) => !existingGameIds.has(String(juego._id || '').trim()))
+          .map((juego) => {
+            return {
+              usuarioId: userId,
+              juegoId: juego._id,
+              elo: 0,
+              partidasJugadas: 0,
+              victorias: 0,
+              derrotas: 0,
+              empates: 0,
+              ligaId: null,
+            };
+          });
+
+      if (statsRecords.length === 0) {
+        this.logger.log(
+          `Bootstrap sin cambios para usuarioId=${userId}. Estadisticas ya existen para todos los juegos.`,
+        );
+        return;
+      }
 
       await this.robleService.insert<Omit<EstadisticasJuegoUsuarioRow, '_id'>>(
         accessToken,
