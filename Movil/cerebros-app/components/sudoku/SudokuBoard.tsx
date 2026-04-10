@@ -16,7 +16,6 @@ const lightPalette = {
   text: '#222831',
   peerBg: '#e7eef0',
   sameBg: '#cfe0e5',
-  selectedBg: '#dce8ec',
   errorBg: '#ffdbdb',
   errorText: '#941b1b',
   noteText: '#4a5565',
@@ -31,7 +30,6 @@ const darkPalette = {
   text: '#e8edf3',
   peerBg: '#2c4048',
   sameBg: '#38535c',
-  selectedBg: '#425f69',
   errorBg: '#5b2a2a',
   errorText: '#ffd4d4',
   noteText: '#aeb7c5',
@@ -63,6 +61,7 @@ export function SudokuBoard({ ariaLabel = 'Tablero Sudoku' }: SudokuBoardProps) 
     useSudokuGame();
 
   const outerBorderWidth = 2;
+  const subgridLineWidth = 2;
   const cellSize = useMemo(
     () => Math.max(24, Math.floor(Math.max(0, boardWidth - outerBorderWidth * 2) / 9)),
     [boardWidth],
@@ -89,8 +88,6 @@ export function SudokuBoard({ ariaLabel = 'Tablero Sudoku' }: SudokuBoardProps) 
               Boolean(highlightEnabled) && selectedValue !== 0 && value !== 0 && value === selectedValue;
             const hasNotes = Boolean(notes[rowIndex]?.[colIndex]?.size);
             const showError = isCellError(rowIndex, colIndex, value);
-            const hasBlockRight = (colIndex + 1) % 3 === 0 && colIndex !== 8;
-            const hasBlockBottom = (rowIndex + 1) % 3 === 0 && rowIndex !== 8;
 
             return (
               <Pressable
@@ -104,18 +101,13 @@ export function SudokuBoard({ ariaLabel = 'Tablero Sudoku' }: SudokuBoardProps) 
                     width: cellSize,
                     height: cellSize,
                     borderColor: palette.cellBorder,
-                    borderRightWidth: hasBlockRight ? 3 : 1,
-                    borderBottomWidth: hasBlockBottom ? 3 : 1,
+                    borderRightWidth: 1,
+                    borderBottomWidth: 1,
                     backgroundColor: palette.cellBg,
                   },
                   isPrefilled && { backgroundColor: palette.cellPrefilled },
                   isPeer && { backgroundColor: palette.peerBg },
                   isSameValue && { backgroundColor: palette.sameBg },
-                  isSelected && {
-                    borderColor: palette.subgridLine,
-                    borderWidth: 2,
-                    backgroundColor: palette.selectedBg,
-                  },
                   showError && { backgroundColor: palette.errorBg },
                 ]}
               >
@@ -145,10 +137,46 @@ export function SudokuBoard({ ariaLabel = 'Tablero Sudoku' }: SudokuBoardProps) 
                     )}
                   </View>
                 ) : null}
+
+                {isSelected ? (
+                  <View
+                    pointerEvents="none"
+                    style={[styles.selectedOverlay, { borderColor: palette.subgridLine }]}
+                  />
+                ) : null}
               </Pressable>
             );
             })}
           </View>
+        ))}
+
+        {[1, 2].map((section) => (
+          <View
+            key={`v-${section}`}
+            pointerEvents="none"
+            style={[
+              styles.subgridVertical,
+              {
+                width: subgridLineWidth,
+                backgroundColor: palette.subgridLine,
+                left: outerBorderWidth + cellSize * section * 3 - subgridLineWidth / 2,
+              },
+            ]}
+          />
+        ))}
+        {[1, 2].map((section) => (
+          <View
+            key={`h-${section}`}
+            pointerEvents="none"
+            style={[
+              styles.subgridHorizontal,
+              {
+                height: subgridLineWidth,
+                backgroundColor: palette.subgridLine,
+                top: outerBorderWidth + cellSize * section * 3 - subgridLineWidth / 2,
+              },
+            ]}
+          />
         ))}
       </View>
     </View>
@@ -161,6 +189,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   grid: {
+    position: 'relative',
     borderWidth: 2,
     borderRadius: 10,
     overflow: 'hidden',
@@ -169,10 +198,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   cell: {
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
     borderRightWidth: 1,
     borderBottomWidth: 1,
+  },
+  selectedOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderWidth: 1,
+    zIndex: 3,
+  },
+  subgridVertical: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    zIndex: 2,
+  },
+  subgridHorizontal: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 2,
   },
   valueText: {
     fontSize: 20,

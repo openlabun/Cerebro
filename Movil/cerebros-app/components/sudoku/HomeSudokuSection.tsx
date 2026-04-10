@@ -60,9 +60,6 @@ export function HomeSudokuSection() {
 
   return (
     <View style={styles.content}>
-      <Text variant="headlineSmall" style={{ color: palette.text }}>
-        Sudoku local
-      </Text>
       <View style={styles.topRow}>
         <Menu
           visible={menuVisible}
@@ -96,22 +93,19 @@ export function HomeSudokuSection() {
         >
           {formatSudokuTime(seconds)}
         </Chip>
-      </View>
-
-      <View style={styles.statsRow}>
         <Chip
           icon="alert-circle-outline"
           style={{ backgroundColor: palette.chipBg, borderColor: palette.border, borderWidth: 1 }}
           textStyle={{ color: palette.text }}
         >
-          Errores: {errorCount}
+         {errorCount}
         </Chip>
         <Chip
           icon="lightbulb-on-outline"
           style={{ backgroundColor: palette.chipBg, borderColor: palette.border, borderWidth: 1 }}
           textStyle={{ color: palette.text }}
         >
-          Pistas: {hintsUsed}/{hintLimit}
+        {hintsUsed}/{hintLimit}
         </Chip>
       </View>
 
@@ -165,15 +159,6 @@ export function HomeSudokuSection() {
         </Text>
       </View>
 
-      {status ? (
-        <Text
-          variant="bodyMedium"
-          style={{ color: statusOk ? palette.accent : palette.mutedText }}
-        >
-          {status}
-        </Text>
-      ) : null}
-
       <Portal>
         <Dialog visible={paused && !completed} onDismiss={() => setPaused(false)}>
           <Dialog.Title>Juego en pausa</Dialog.Title>
@@ -205,6 +190,7 @@ export function HomeSudokuSection() {
 const styles = StyleSheet.create({
   content: {
     gap: 14,
+    padding: 16
   },
   topRow: {
     flexDirection: 'row',

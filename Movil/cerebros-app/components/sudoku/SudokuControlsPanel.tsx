@@ -72,9 +72,6 @@ export function SudokuControlsPanel({
 
   return (
     <View style={styles.container}>
-      <Text variant="titleSmall" style={{ color: palette.text }}>
-        {keypadLabel}
-      </Text>
       <View style={styles.keypadRow}>
         {Array.from({ length: 9 }, (_, index) => index + 1).map((num) => {
           const hidden = getNumberHidden(num);
