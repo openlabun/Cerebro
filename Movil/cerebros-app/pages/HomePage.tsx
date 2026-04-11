@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { View } from 'react-native';
 
+import { Header } from '@/components/Header';
 import { HomeSudokuSection } from '@/components/sudoku/HomeSudokuSection';
 import { useAppStyles } from '@/hooks/useAppStyles';
 import { SudokuGameProvider } from '@/context/SudokuGameContext';
@@ -16,7 +17,8 @@ export default function HomePage() {
       end={ui.gradientEnd}
       style={ui.screenStyle}
     >
-      <View style={ui.containerStyle}>
+      <View style={ui.containerPageStyle}>
+        <Header />
         <SudokuGameProvider>
           <HomeSudokuSection />
         </SudokuGameProvider>

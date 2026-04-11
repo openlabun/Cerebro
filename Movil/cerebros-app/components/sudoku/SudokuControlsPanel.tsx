@@ -42,7 +42,7 @@ const lightPalette = {
   text: '#222831',
   accent: '#76abae',
   accentDark: '#5f9497',
-  mutedSurface: '#eef3f4',
+  mutedSurface: '#ffffff',
   controlIcon: '#5a8a8d',
   controlIconActive: '#76abae',
 };
