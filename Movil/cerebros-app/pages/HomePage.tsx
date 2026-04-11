@@ -1,17 +1,11 @@
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ScrollView, View } from 'react-native';
-import { Button, Card, Switch, Text } from 'react-native-paper';
+import { View } from 'react-native';
 
 import { HomeSudokuSection } from '@/components/sudoku/HomeSudokuSection';
-import { useThemeMode } from '@/constants/theme';
 import { useAppStyles } from '@/hooks/useAppStyles';
-import { appRoutes } from '@/routes';
 import { SudokuGameProvider } from '@/context/SudokuGameContext';
 
 export default function HomePage() {
-  const router = useRouter();
-  const { isDark, mode, toggleTheme } = useThemeMode();
   const ui = useAppStyles();
 
   return (
@@ -22,10 +16,11 @@ export default function HomePage() {
       end={ui.gradientEnd}
       style={ui.screenStyle}
     >
-
+      <View style={ui.containerStyle}>
         <SudokuGameProvider>
           <HomeSudokuSection />
         </SudokuGameProvider>
+      </View>
     </LinearGradient>
   );
 }

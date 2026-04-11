@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Chip, Dialog, Menu, Portal, ProgressBar, Text, useTheme } from 'react-native-paper';
+import { Button, Chip, Dialog, IconButton, Menu, Portal, ProgressBar, Text, useTheme } from 'react-native-paper';
 
+import { useThemeMode } from '@/constants/theme';
 import { formatSudokuTime } from '@/context';
 import { useLocalSudokuGame } from '@/hooks/useLocalSudokuGame';
 import { difficultyLevels } from '@/services';
@@ -29,6 +30,7 @@ const darkPalette = {
 
 export function HomeSudokuSection() {
   const theme = useTheme();
+  const { isDark, toggleTheme } = useThemeMode();
   const palette = theme.dark ? darkPalette : lightPalette;
   const [menuVisible, setMenuVisible] = useState(false);
   const {
@@ -45,7 +47,6 @@ export function HomeSudokuSection() {
     status,
     statusOk,
     progress,
-    correctCounts,
     hintLimit,
     setPaused,
     setNoteMode,
@@ -86,6 +87,27 @@ export function HomeSudokuSection() {
             />
           ))}
         </Menu>
+          <View style={styles.playerActionsRow}>
+          <IconButton
+          icon={paused ? 'play' : 'pause'}
+          mode="contained"
+          onPress={() => setPaused((current) => !current)}
+          containerColor={palette.chipBg}
+          iconColor={palette.text}
+          accessibilityLabel={paused ? 'Reanudar' : 'Pausar'}
+        />
+        <IconButton
+          icon="plus"
+          mode="contained"
+          onPress={() => startNewGame(difficultyKey)}
+          containerColor={palette.accent}
+          iconColor="#ffffff"
+          accessibilityLabel="Nuevo juego"
+        />
+          </View>
+      </View>
+
+      <View style={styles.actionsRow}>
         <Chip
           icon="timer-outline"
           style={{ backgroundColor: palette.chipBg, borderColor: palette.border, borderWidth: 1 }}
@@ -109,43 +131,27 @@ export function HomeSudokuSection() {
         </Chip>
       </View>
 
-      <View style={styles.actionsRow}>
-        <Button
-          mode="contained"
-          onPress={() => setPaused((current) => !current)}
-          buttonColor={palette.chipBg}
-          textColor={palette.text}
-        >
-          {paused ? 'Reanudar' : 'Pausar'}
-        </Button>
-        <Button
-          mode="contained"
-          onPress={() => startNewGame(difficultyKey)}
-          buttonColor={palette.accent}
-          textColor="#ffffff"
-        >
-          Nuevo juego
-        </Button>
-      </View>
-
       <SudokuBoard />
 
       <SudokuControlsPanel
         noteMode={noteMode}
         highlightEnabled={highlightEnabled}
         hintCount={hintsUsed}
+        isDark={isDark}
+        onToggleTheme={toggleTheme}
         keypadDisabled={locked}
         clearDisabled={locked}
         noteDisabled={locked}
         highlightDisabled={locked}
         hintDisabled={locked}
+        themeToggleDisabled={locked}
         onApplyValue={(num) => applyValue(num, noteMode)}
         onClearCell={clearSelectedCell}
         onHint={applyHint}
         onToggleNoteMode={() => setNoteMode((current) => !current)}
         onToggleHighlight={() => setHighlightEnabled((current) => !current)}
-        getNumberHidden={(num) => correctCounts[num] >= 9}
-        getNumberDisabled={(num) => correctCounts[num] >= 9}
+        getNumberHidden={() => false}
+        getNumberDisabled={() => false}
       />
 
       <View style={styles.progressWrap}>
@@ -160,7 +166,7 @@ export function HomeSudokuSection() {
       </View>
 
       <Portal>
-        <Dialog visible={paused && !completed} onDismiss={() => setPaused(false)}>
+        <Dialog visible={paused && !completed} onDismiss={() => setPaused(false)} style={styles.dialogNoRadius}>
           <Dialog.Title>Juego en pausa</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">El tiempo esta detenido. Pulsa reanudar para continuar.</Text>
@@ -170,7 +176,7 @@ export function HomeSudokuSection() {
           </Dialog.Actions>
         </Dialog>
 
-        <Dialog visible={completed} onDismiss={() => startNewGame(difficultyKey)}>
+        <Dialog visible={completed} onDismiss={() => startNewGame(difficultyKey)} style={styles.dialogNoRadius}>
           <Dialog.Title>Sudoku completado</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">Puntaje: {score}</Text>
@@ -205,10 +211,16 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 8,
+  },
+  playerActionsRow: {
+    flexDirection: 'row',
   },
   progressWrap: {
     gap: 6,
+  },
+  dialogNoRadius: {
+    borderRadius: 8,
   },
 });

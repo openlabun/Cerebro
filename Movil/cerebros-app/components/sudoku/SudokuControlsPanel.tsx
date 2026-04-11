@@ -1,6 +1,9 @@
 import { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, IconButton, Text, useTheme } from 'react-native-paper';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Button, Text, useTheme } from 'react-native-paper';
+
+import { EraseIcon, HintIcon, NotesIcon } from './SudokuControlIcons';
 
 type SudokuControlsPanelProps = {
   noteMode: boolean;
@@ -16,6 +19,9 @@ type SudokuControlsPanelProps = {
   highlightDisabled?: boolean;
   hintDisabled?: boolean;
   hintCount?: number;
+  isDark?: boolean;
+  onToggleTheme?: () => void;
+  themeToggleDisabled?: boolean;
   keypadLabel?: string;
   getNumberHidden?: (num: number) => boolean;
   getNumberDisabled?: (num: number) => boolean;
@@ -37,6 +43,8 @@ const lightPalette = {
   accent: '#76abae',
   accentDark: '#5f9497',
   mutedSurface: '#eef3f4',
+  controlIcon: '#5a8a8d',
+  controlIconActive: '#76abae',
 };
 
 const darkPalette = {
@@ -46,6 +54,8 @@ const darkPalette = {
   accent: '#76abae',
   accentDark: '#5f9497',
   mutedSurface: '#31363f',
+  controlIcon: '#5a8a8d',
+  controlIconActive: '#76abae',
 };
 
 export function SudokuControlsPanel({
@@ -62,6 +72,9 @@ export function SudokuControlsPanel({
   highlightDisabled = false,
   hintDisabled = false,
   hintCount = 0,
+  isDark = false,
+  onToggleTheme,
+  themeToggleDisabled = false,
   keypadLabel = 'Teclado numerico',
   getNumberHidden = defaultNumberVisibility,
   getNumberDisabled = defaultNumberDisabled,
@@ -72,10 +85,96 @@ export function SudokuControlsPanel({
 
   return (
     <View style={styles.container}>
+      <View style={styles.actionsRow}>
+        <Pressable
+          disabled={clearDisabled}
+          onPress={onClearCell}
+          style={[
+            styles.actionButton,
+            { backgroundColor: palette.mutedSurface, borderColor: palette.border },
+            clearDisabled && styles.actionButtonDisabled,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Borrar celda"
+        >
+          <EraseIcon size={22} color={palette.controlIcon} />
+          <Text variant="labelMedium" style={{ color: palette.controlIcon }}>
+            Borrar
+          </Text>
+        </Pressable>
+
+        <Pressable
+          disabled={noteDisabled}
+          onPress={onToggleNoteMode}
+          style={[
+            styles.actionButton,
+            {
+              backgroundColor: noteMode ? palette.controlIconActive : palette.mutedSurface,
+              borderColor: noteMode ? palette.controlIconActive : palette.border,
+            },
+            noteDisabled && styles.actionButtonDisabled,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Modo notas"
+        >
+          <NotesIcon size={22} color={noteMode ? '#ffffff' : palette.controlIcon} />
+          <Text
+            variant="labelMedium"
+            style={{ color: noteMode ? '#ffffff' : palette.controlIcon }}
+          >
+            Notas
+          </Text>
+        </Pressable>
+
+        <Pressable
+          disabled={hintDisabled}
+          onPress={onHint}
+          style={[
+            styles.actionButton,
+            { backgroundColor: palette.mutedSurface, borderColor: palette.border },
+            hintDisabled && styles.actionButtonDisabled,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Pista"
+        >
+          <HintIcon size={22} color={palette.controlIcon} />
+          <Text variant="labelMedium" style={{ color: palette.controlIcon }}>
+            Pista
+          </Text>
+          <View style={[styles.hintBadge, { backgroundColor: palette.accentDark }]}>
+            <Text variant="labelSmall" style={{ color: '#ffffff' }}>
+              {hintCount}
+            </Text>
+          </View>
+        </Pressable>
+
+        {onToggleTheme ? (
+          <Pressable
+            disabled={themeToggleDisabled}
+            onPress={onToggleTheme}
+            style={[
+              styles.actionButton,
+              { backgroundColor: palette.mutedSurface, borderColor: palette.border },
+              themeToggleDisabled && styles.actionButtonDisabled,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+          >
+            <MaterialCommunityIcons
+              name={isDark ? 'weather-sunny' : 'weather-night'}
+              size={22}
+              color={palette.controlIcon}
+            />
+            <Text variant="labelMedium" style={{ color: palette.controlIcon }}>
+              Tema
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
       <View style={styles.keypadRow}>
         {Array.from({ length: 9 }, (_, index) => index + 1).map((num) => {
           const hidden = getNumberHidden(num);
-          const disabled = keypadDisabled || hidden || getNumberDisabled(num);
+          const disabled = keypadDisabled || getNumberDisabled(num);
 
           return (
             <Button
@@ -87,7 +186,6 @@ export function SudokuControlsPanel({
               style={[
                 styles.numberButton,
                 { borderColor: palette.border, backgroundColor: palette.surface },
-                hidden && styles.numberHidden,
               ]}
               contentStyle={styles.numberButtonContent}
               buttonColor={palette.surface}
@@ -103,40 +201,7 @@ export function SudokuControlsPanel({
         })}
       </View>
 
-      <View style={styles.actionsRow}>
-        <IconButton
-          icon="eraser"
-          mode="contained"
-          disabled={clearDisabled}
-          onPress={onClearCell}
-          containerColor={palette.mutedSurface}
-          iconColor={palette.text}
-          accessibilityLabel="Borrar celda"
-        />
-        <IconButton
-          icon="pencil"
-          mode="contained"
-          disabled={noteDisabled}
-          onPress={onToggleNoteMode}
-          containerColor={noteMode ? palette.accent : palette.mutedSurface}
-          iconColor={noteMode ? '#ffffff' : palette.text}
-          accessibilityLabel="Modo notas"
-        />
-        <IconButton
-          icon="lightbulb-on-outline"
-          mode="contained"
-          disabled={hintDisabled}
-          onPress={onHint}
-          containerColor={palette.mutedSurface}
-          iconColor={palette.text}
-          accessibilityLabel="Pista"
-        />
-        <View style={[styles.hintBadge, { backgroundColor: palette.accentDark }]}>
-          <Text variant="labelSmall" style={{ color: '#ffffff' }}>
-            {hintCount}
-          </Text>
-        </View>
-      </View>
+
 
       <Button
         mode="contained"
@@ -156,38 +221,56 @@ export function SudokuControlsPanel({
 const styles = StyleSheet.create({
   container: {
     gap: 10,
+    width: '100%',
   },
   keypadRow: {
+    width: '100%',
+    alignSelf: 'stretch',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    flexWrap: 'nowrap',
+    gap: 2,
   },
   numberButton: {
-    width: '30%',
-    minWidth: 84,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  numberHidden: {
-    opacity: 0,
+    flex: 1,
+    minWidth: 0,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
   },
   numberButtonContent: {
-    minHeight: 42,
+    minHeight: 64,
+
   },
   numberButtonLabel: {
-    fontSize: 16,
+    fontSize: 24,
     fontWeight: '700',
   },
   actionsRow: {
+    width: '100%',
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 6,
   },
+  actionButton: {
+    position: 'relative',
+    flex: 1,
+    minHeight: 72,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+  },
+  actionButtonDisabled: {
+    opacity: 0.45,
+  },
   hintBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
     minWidth: 26,
-    height: 26,
-    borderRadius: 13,
-    paddingHorizontal: 6,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },

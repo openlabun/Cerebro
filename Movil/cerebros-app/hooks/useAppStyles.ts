@@ -9,14 +9,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    gap: 20,
   },
   container_page: {
     flex: 1,
-    paddingTop: 20,
-    paddingHorizontal: 24,
-    gap: 20,
+    paddingTop: 20
   },
   eyebrow: {
     fontSize: 14,
