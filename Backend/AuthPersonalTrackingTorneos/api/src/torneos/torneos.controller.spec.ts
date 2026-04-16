@@ -14,6 +14,9 @@ describe('TorneosController', () => {
       | 'obtenerTorneoDetallePublico'
       | 'unirseATorneo'
       | 'actualizarEstadoTorneo'
+      | 'listarHistorialParticipacion'
+      | 'listarParticipantes'
+      | 'obtenerRanking'
       | 'obtenerRankingPublico'
     >
   >;
@@ -30,6 +33,9 @@ describe('TorneosController', () => {
       obtenerTorneoDetallePublico: jest.fn(),
       unirseATorneo: jest.fn(),
       actualizarEstadoTorneo: jest.fn(),
+      listarHistorialParticipacion: jest.fn(),
+      listarParticipantes: jest.fn(),
+      obtenerRanking: jest.fn(),
       obtenerRankingPublico: jest.fn(),
     };
 
@@ -195,5 +201,95 @@ describe('TorneosController', () => {
     expect(bootstrapService.ensureInitialized).not.toHaveBeenCalled();
     expect(service.obtenerRankingPublico).toHaveBeenCalledWith('torneo-publico');
     expect(result).toEqual([{ usuarioId: 'user-1' }]);
+  });
+
+  it('delegates authenticated participants with current user context', async () => {
+    service.listarParticipantes.mockResolvedValue([{ usuarioId: 'user-1' }] as never);
+
+    const req = {
+      accessToken: 'token-participants',
+      robleUser: {
+        sub: 'creator-1',
+        role: 'player',
+        name: 'Creator',
+        email: 'creator@example.com',
+      },
+    } as never;
+
+    const result = await controller.participantes(req, 'torneo-finalizado');
+
+    expect(bootstrapService.ensureInitialized).toHaveBeenCalledWith(
+      'token-participants',
+      'creator-1',
+      'Creator',
+      'creator@example.com',
+    );
+    expect(service.listarParticipantes).toHaveBeenCalledWith(
+      'token-participants',
+      'torneo-finalizado',
+      'creator-1',
+      'player',
+    );
+    expect(result).toEqual([{ usuarioId: 'user-1' }]);
+  });
+
+  it('delegates authenticated ranking with current user context', async () => {
+    service.obtenerRanking.mockResolvedValue([{ usuarioId: 'user-1', puntaje: 50 }] as never);
+
+    const req = {
+      accessToken: 'token-ranking',
+      robleUser: {
+        sub: 'creator-1',
+        role: 'player',
+        name: 'Creator',
+        email: 'creator@example.com',
+      },
+    } as never;
+
+    const result = await controller.ranking(req, 'torneo-finalizado');
+
+    expect(bootstrapService.ensureInitialized).toHaveBeenCalledWith(
+      'token-ranking',
+      'creator-1',
+      'Creator',
+      'creator@example.com',
+    );
+    expect(service.obtenerRanking).toHaveBeenCalledWith(
+      'token-ranking',
+      'torneo-finalizado',
+      'creator-1',
+      'player',
+    );
+    expect(result).toEqual([{ usuarioId: 'user-1', puntaje: 50 }]);
+  });
+
+  it('delegates participant history for the current authenticated user', async () => {
+    service.listarHistorialParticipacion.mockResolvedValue([
+      { _id: 'torneo-1', miPosicion: 2 },
+    ] as never);
+
+    const req = {
+      accessToken: 'token-history',
+      robleUser: {
+        sub: 'player-1',
+        role: 'player',
+        name: 'Player Uno',
+        email: 'player@example.com',
+      },
+    } as never;
+
+    const result = await controller.historialParticipacion(req);
+
+    expect(bootstrapService.ensureInitialized).toHaveBeenCalledWith(
+      'token-history',
+      'player-1',
+      'Player Uno',
+      'player@example.com',
+    );
+    expect(service.listarHistorialParticipacion).toHaveBeenCalledWith(
+      'token-history',
+      'player-1',
+    );
+    expect(result).toEqual([{ _id: 'torneo-1', miPosicion: 2 }]);
   });
 });
