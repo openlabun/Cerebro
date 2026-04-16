@@ -359,12 +359,7 @@ function ProfilePage() {
             <div>
               <p className="profile-history-kicker">Torneos</p>
               <h3>Resultados de torneos donde participaste</h3>
-              <p className="profile-history-copy">
-                Consulta tus torneos finalizados y entra al detalle para revisar ranking,
-                participantes y resultado final.
-              </p>
             </div>
-            <span className="profile-history-count">{tournamentHistory.length}</span>
           </div>
 
           {historyLoading ? (

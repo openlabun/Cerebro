@@ -38,23 +38,6 @@
   text-transform: uppercase;
 }
 
-.profile-history-copy {
-  margin: 0;
-  color: var(--muted);
-}
-
-.profile-history-count {
-  min-width: 42px;
-  height: 42px;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
-  color: var(--primary-dark);
-  font-weight: 800;
-}
-
 .profile-history-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
