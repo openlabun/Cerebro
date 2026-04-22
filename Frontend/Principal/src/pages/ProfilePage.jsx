@@ -212,15 +212,19 @@ function ProfilePage() {
         const elo = Number(stats.elo ?? 0)
         const partidasJugadas = Number(stats.partidasJugadas ?? 0)
         const liga =
-          elo >= 301 && elo <= 400
-            ? 'Platino'
-            : elo >= 201 && elo <= 300
-              ? 'Oro'
-              : elo >= 101 && elo <= 200
-                ? 'Plata'
-                : elo >= 0 && elo <= 100
-                  ? 'Bronce'
-                  : '-'
+          elo >= 2501
+            ? 'Maestro'
+            : elo >= 2001
+              ? 'Diamante'
+              : elo >= 1501
+                ? 'Platino'
+                : elo >= 1001
+                  ? 'Oro'
+                  : elo >= 501
+                    ? 'Plata'
+                    : elo >= 0
+                      ? 'Bronce'
+                      : '-'
 
         const frame = getFrameByElo(elo)
         const localUnlocked = new Set(getUnlockedKeysByRules(partidasJugadas, elo))
