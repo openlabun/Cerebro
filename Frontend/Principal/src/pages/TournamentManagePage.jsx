@@ -27,6 +27,11 @@ function formatElapsedSeconds(value) {
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`
 }
 
+function isAvailableOfficialTournament(tournament) {
+  const state = String(tournament?.estado || '').trim().toUpperCase()
+  return isOfficialTournament(tournament) && (state === 'ACTIVO' || state === 'PROGRAMADO')
+}
+
 function TournamentManagePage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -109,6 +114,7 @@ function TournamentManagePage() {
   const currentState = String(tournament?.estado || '').trim().toUpperCase()
   const currentType = String(tournament?.tipo || '').trim().toUpperCase()
   const isClosedState = currentState === 'FINALIZADO' || currentState === 'CANCELADO'
+  const shouldSignalOfficialJoin = isAvailableOfficialTournament(tournament) && !isParticipant && !isClosedState
   const canPlayTournament = isAuthenticated && isParticipant && currentState === 'ACTIVO' && currentType !== 'PVP'
   const inviteLink =
     tournament?.esPublico === false
@@ -206,6 +212,7 @@ function TournamentManagePage() {
         requiresCode ? { codigoAcceso: resolvedJoinCode } : {},
         accessToken,
       )
+      window.dispatchEvent(new Event('cerebro:tournaments-updated'))
       setPageStatus('Te uniste al torneo correctamente.')
       setJoinCode('')
       if (inviteCodeFromQuery) {
@@ -472,7 +479,12 @@ function TournamentManagePage() {
               ) : isClosedState ? (
                 <p className="status">El torneo ya no admite nuevas inscripciones.</p>
               ) : (
-                <button className="btn primary" type="button" disabled={actionBusy} onClick={handleJoinTournament}>
+                <button
+                  className={`btn primary${shouldSignalOfficialJoin ? ' btn--tournament-signal' : ''}`}
+                  type="button"
+                  disabled={actionBusy}
+                  onClick={handleJoinTournament}
+                >
                   {actionBusy ? 'Inscribiendote...' : 'Inscribirme para jugar'}
                 </button>
               )}
@@ -536,7 +548,12 @@ function TournamentManagePage() {
                     </>
                   ) : null}
 
-                  <button className="btn primary" type="button" disabled={actionBusy} onClick={handleJoinTournament}>
+                  <button
+                    className={`btn primary${shouldSignalOfficialJoin ? ' btn--tournament-signal' : ''}`}
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={handleJoinTournament}
+                  >
                     {actionBusy ? 'Uniéndote...' : 'Unirme al torneo'}
                   </button>
                 </div>
