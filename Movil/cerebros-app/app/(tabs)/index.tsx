@@ -1,5 +1,5 @@
 import { HomePage } from '@/pages';
 
-export default function Index() {
+export default function PlayTabRoute() {
   return <HomePage />;
 }

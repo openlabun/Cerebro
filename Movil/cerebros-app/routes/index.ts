@@ -1,15 +1,11 @@
 export const appRoutes = {
-  home: '/' as const,
+  home: '/index' as const,
   profile: '/profile' as const,
 };
 
 export const rootStackScreens = [
   {
-    name: 'index' as const,
+    name: '(tabs)' as const,
     options: { headerShown: false },
-  },
-  {
-    name: 'profile' as const,
-    options: { title: 'Perfil' },
   },
 ];

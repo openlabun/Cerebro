@@ -1,5 +1,5 @@
 import { ProfilePage } from '@/pages';
 
-export default function ProfileRoute() {
+export default function ProfileTabRoute() {
   return <ProfilePage />;
 }

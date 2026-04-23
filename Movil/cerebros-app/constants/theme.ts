@@ -16,9 +16,9 @@ const palette = {
   darkBackground: '#222831',
   lightSurface: '#ffffff',
   darkSurface: '#2b313b',
-  lightPrimary: '#1a3b7a',
+  lightPrimary: '#76abae',
   darkPrimary: '#d8e2ff',
-  lightAccent: '#4464a7',
+  lightAccent: '#76abae',
   darkAccent: '#9fb7ff',
 };
 
