@@ -244,6 +244,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
 
     try {
       await apiClient.joinTournament(nextTournamentId, c1AccessToken)
+      window.dispatchEvent(new Event('cerebro:tournaments-updated'))
     } catch (error) {
       if (!isAlreadyJoinedError(error)) throw error
     }
