@@ -1,15 +1,53 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import SudokuBoard from '../components/SudokuBoard.jsx'
 import SudokuControlsPanel from '../components/SudokuControlsPanel.jsx'
 import DifficultySelect from '../components/DifficultySelect.jsx'
 import { SudokuGameProvider } from '../context/SudokuGameContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 import { formatSudokuTime } from '../context/SudokuGameContext.jsx'
 import { useLocalSudokuGame } from '../hooks/useLocalSudokuGame.js'
 import { useLiveHeartbeat } from '../hooks/useLiveHeartbeat.js'
 import { difficultyLevels } from '../lib/sudoku.js'
+import { canManageTournament, getTournamentTimestamp, isAvailableOfficialTournament } from '../lib/tournaments.js'
+import { apiClient } from '../services/apiClient.js'
+
+const TOURNAMENTS_UPDATED_EVENT = 'cerebro:tournaments-updated'
+
+function getOfficialTournamentPriority(tournament) {
+  const state = String(tournament?.estado || '').trim().toUpperCase()
+  const statePriority = state === 'ACTIVO' ? 0 : 1
+  const startTimestamp = tournament?.fechaInicio
+    ? getTournamentTimestamp(tournament.fechaInicio, { kind: 'schedule' })
+    : Number.MAX_SAFE_INTEGER
+
+  return { statePriority, startTimestamp }
+}
+
+function pickAvailableOfficialTournament(rows, user) {
+  return [...(rows || [])]
+    .filter(
+      (tournament) =>
+        isAvailableOfficialTournament(tournament) &&
+        tournament?.inscrito !== true &&
+        !canManageTournament(tournament, user),
+    )
+    .sort((left, right) => {
+      const leftPriority = getOfficialTournamentPriority(left)
+      const rightPriority = getOfficialTournamentPriority(right)
+
+      if (leftPriority.statePriority !== rightPriority.statePriority) {
+        return leftPriority.statePriority - rightPriority.statePriority
+      }
+
+      return leftPriority.startTimestamp - rightPriority.startTimestamp
+    })[0] || null
+}
 
 function SudokuPageContent() {
   const [completionModalDismissed, setCompletionModalDismissed] = useState(false)
+  const [availableOfficialTournament, setAvailableOfficialTournament] = useState(null)
+  const { accessToken, isLoading, user } = useAuth()
   const difficultyOptions = difficultyLevels.map((level) => ({
     value: level.key,
     label: level.label,
@@ -60,6 +98,41 @@ function SudokuPageContent() {
       setCompletionModalDismissed(false)
     }
   }, [completed])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadOfficialTournament() {
+      if (isLoading) return
+
+      try {
+        const payload = accessToken
+          ? await apiClient.getTournaments(accessToken)
+          : await apiClient.getPublicTournaments()
+        const nextAvailableOfficialTournament = pickAvailableOfficialTournament(payload, user)
+
+        if (mounted) {
+          setAvailableOfficialTournament(nextAvailableOfficialTournament)
+        }
+      } catch {
+        if (mounted) {
+          setAvailableOfficialTournament(null)
+        }
+      }
+    }
+
+    function handleTournamentRefresh() {
+      loadOfficialTournament()
+    }
+
+    loadOfficialTournament()
+    window.addEventListener(TOURNAMENTS_UPDATED_EVENT, handleTournamentRefresh)
+
+    return () => {
+      mounted = false
+      window.removeEventListener(TOURNAMENTS_UPDATED_EVENT, handleTournamentRefresh)
+    }
+  }, [accessToken, isLoading, user?.id, user?.sub])
 
   function handleDismissCompletionModal() {
     setCompletionModalDismissed(true)
@@ -114,6 +187,14 @@ function SudokuPageContent() {
         <div className="game-header">
           <div>
             <h1 className="sudoku-page-title">Partida actual</h1>
+            {availableOfficialTournament ? (
+              <Link
+                className="btn primary btn--tournament-signal sudoku-official-tournament-cta"
+                to={`/torneos/${availableOfficialTournament._id}`}
+              >
+                TORNEO OFICIAL DISPONIBLE: click para inscribirte
+              </Link>
+            ) : null}
           </div>
         </div>
 

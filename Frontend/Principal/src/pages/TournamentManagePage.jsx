@@ -11,6 +11,7 @@ import {
   formatTournamentState,
   formatTournamentType,
   getAllowedTournamentTransitions,
+  isAvailableOfficialTournament,
   isOfficialTournament,
   getTournamentOwnerLabel,
   getTournamentStatusTone,
@@ -25,11 +26,6 @@ function formatElapsedSeconds(value) {
   const minutes = Math.floor(total / 60)
   const seconds = total % 60
   return `${minutes}m ${String(seconds).padStart(2, '0')}s`
-}
-
-function isAvailableOfficialTournament(tournament) {
-  const state = String(tournament?.estado || '').trim().toUpperCase()
-  return isOfficialTournament(tournament) && (state === 'ACTIVO' || state === 'PROGRAMADO')
 }
 
 function TournamentManagePage() {

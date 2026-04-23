@@ -2,15 +2,10 @@ import { useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { applyTheme, getNextTheme, getStoredTheme, getThemeLabel } from '../lib/theme.js'
-import { canManageTournament, isOfficialTournament } from '../lib/tournaments.js'
+import { canManageTournament, isAvailableOfficialTournament } from '../lib/tournaments.js'
 import { apiClient } from '../services/apiClient.js'
 import logoCerebroDark from '../assets/logo-cerebro.png'
 import logoCerebroLight from '../assets/logo-cerebro-light.png'
-
-function isAvailableOfficialTournament(tournament) {
-  const state = String(tournament?.estado || '').trim().toUpperCase()
-  return isOfficialTournament(tournament) && (state === 'ACTIVO' || state === 'PROGRAMADO')
-}
 
 const TOURNAMENTS_UPDATED_EVENT = 'cerebro:tournaments-updated'
 

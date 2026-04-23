@@ -12,6 +12,7 @@ import {
   getTournamentOwnerLabel,
   getTournamentStatusTone,
   getTournamentVisibilityLabel,
+  isAvailableOfficialTournament,
   isOfficialTournament,
   summarizeTournamentConfig,
   tournamentStateOptions,
@@ -39,11 +40,6 @@ function sortTournaments(rows, user) {
       : getTournamentTimestamp(right?.fechaCreacion || 0, { kind: 'system' })
     return rightDate - leftDate
   })
-}
-
-function isAvailableOfficialTournament(tournament) {
-  const state = String(tournament?.estado || '').trim().toUpperCase()
-  return isOfficialTournament(tournament) && (state === 'ACTIVO' || state === 'PROGRAMADO')
 }
 
 function TournamentsPage() {
