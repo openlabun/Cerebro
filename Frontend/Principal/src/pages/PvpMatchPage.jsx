@@ -15,6 +15,7 @@ import { useSudokuKeyboardControls } from '../hooks/useSudokuKeyboardControls.js
 import { useLiveHeartbeat } from '../hooks/useLiveHeartbeat.js'
 import { generatePvpBoard } from '../lib/pvpSudoku.js'
 import {
+  cloneBoard,
   clearNotesCell,
   countCorrectByNumber,
   createEmptyNotes,
@@ -24,6 +25,7 @@ import {
 import { apiClient } from '../services/apiClient.js'
 
 const MATCH_FETCH_TIMEOUT_MS = 8000
+const UNDO_HISTORY_LIMIT = 200
 
 function findFirstEditableCell(puzzle, boardState) {
   for (let row = 0; row < 9; row += 1) {
@@ -105,19 +107,23 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
   const [clockNow, setClockNow] = useState(Date.now())
   const [redirectScheduled, setRedirectScheduled] = useState(false)
   const [winnerModalOpen, setWinnerModalOpen] = useState(false)
+  const [canUndo, setCanUndo] = useState(false)
   const initializedBoardRef = useRef(false)
   const pollingInFlightRef = useRef(false)
   const selectedCellRef = useRef(null)
   const opponentFinishedRef = useRef(false)
   const winnerModalShownRef = useRef(false)
+  const undoHistoryRef = useRef([])
 
   const {
     puzzle,
     solution,
     board,
+    notes,
     selectedCell,
     noteMode,
     highlightEnabled,
+    cellErrors,
     status,
     statusOk,
     hydrateGame,
@@ -126,6 +132,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
     setSelectedCell,
     setNoteMode,
     setHighlightEnabled,
+    setCellErrors,
     setStatus,
     clearSelectedCell,
     toggleSelectedNote,
@@ -151,6 +158,52 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
   useEffect(() => {
     selectedCellRef.current = selectedCell
   }, [selectedCell])
+
+  function clearUndoHistory() {
+    undoHistoryRef.current = []
+    setCanUndo(false)
+  }
+
+  function captureUndoSnapshot() {
+    if (!board.length || !puzzle.length) return null
+    return {
+      board: cloneBoard(board),
+      notes: cloneNotes(notes),
+      selectedCell: selectedCell ? { row: selectedCell.row, col: selectedCell.col } : null,
+      cellErrors: { ...cellErrors },
+    }
+  }
+
+  function pushUndoSnapshot(snapshot) {
+    if (!snapshot) return
+    const nextHistory = [...undoHistoryRef.current, snapshot]
+    if (nextHistory.length > UNDO_HISTORY_LIMIT) {
+      nextHistory.splice(0, nextHistory.length - UNDO_HISTORY_LIMIT)
+    }
+    undoHistoryRef.current = nextHistory
+    setCanUndo(nextHistory.length > 0)
+  }
+
+  function undoLastMove() {
+    if (!isActive || submittingMove || loading) return
+
+    const previousSnapshot = undoHistoryRef.current[undoHistoryRef.current.length - 1]
+    if (!previousSnapshot) {
+      setCanUndo(false)
+      setStatus('No hay movimientos para deshacer.')
+      return
+    }
+
+    const nextHistory = undoHistoryRef.current.slice(0, -1)
+    undoHistoryRef.current = nextHistory
+    setCanUndo(nextHistory.length > 0)
+
+    setBoard(cloneBoard(previousSnapshot.board))
+    setNotes(cloneNotes(previousSnapshot.notes))
+    setSelectedCell(previousSnapshot.selectedCell ? { ...previousSnapshot.selectedCell } : null)
+    setCellErrors({ ...(previousSnapshot.cellErrors || {}) })
+    setStatus('Movimiento deshecho.', true)
+  }
 
   function updateLocalMyGame(mutator) {
     setMatch((current) => {
@@ -241,6 +294,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
         highlightEnabled: true,
         cellErrors: {},
       })
+      clearUndoHistory()
       initializedBoardRef.current = true
     }
 
@@ -450,6 +504,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
   useEffect(() => {
     winnerModalShownRef.current = false
     setWinnerModalOpen(false)
+    clearUndoHistory()
   }, [matchId])
 
   useEffect(() => {
@@ -507,7 +562,11 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       return
     }
     if (asNote) {
-      toggleSelectedNote(num)
+      const snapshot = captureUndoSnapshot()
+      const updated = toggleSelectedNote(num)
+      if (updated) {
+        pushUndoSnapshot(snapshot)
+      }
       return
     }
 
@@ -522,6 +581,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       return
     }
 
+    const snapshot = captureUndoSnapshot()
     const expectedCorrectness = solution[row]?.[col] === num
     const nextBoard = board.map((line) => [...line])
     nextBoard[row][col] = num
@@ -558,6 +618,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
       }
 
       if (result?.esCorrecta) {
+        clearUndoHistory()
         onConfirmedBoardChange((currentBoard) => {
           const nextBoard = currentBoard.map((line) => [...line])
           nextBoard[row][col] = num
@@ -565,6 +626,7 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
         })
         clearCellError(row, col)
       } else {
+        pushUndoSnapshot(snapshot)
         markCellError(row, col, true)
       }
 
@@ -613,10 +675,34 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
 
   function handleClearCell() {
     if (!selectedCell) return
+    const snapshot = captureUndoSnapshot()
     const didClear = clearSelectedCell()
     if (didClear) {
+      pushUndoSnapshot(snapshot)
       clearCellError(selectedCell.row, selectedCell.col)
     }
+  }
+
+  function handleClearNotes() {
+    if (!selectedCell || !isActive || submittingMove || loading) return false
+
+    const { row, col } = selectedCell
+    if (puzzle[row]?.[col] !== 0) return false
+    const hadNotes = notes[row]?.[col]?.size > 0
+    const snapshot = captureUndoSnapshot()
+
+    setNotes((currentNotes) => {
+      const nextNotes = cloneNotes(currentNotes)
+      clearNotesCell(nextNotes, row, col)
+      return nextNotes
+    })
+
+    if (hadNotes) {
+      pushUndoSnapshot(snapshot)
+      setStatus('Notas eliminadas.')
+    }
+
+    return hadNotes
   }
 
   function handleHintUnavailable() {
@@ -645,9 +731,11 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
     setSelectedCell,
     noteMode,
     isEnabled: isActive && !submittingMove && !loading,
+    onUndo: undoLastMove,
     onToggleNoteMode: () => setNoteMode((current) => !current),
     onApplyValue: applyValue,
     onClearCell: handleClearCell,
+    onClearNotes: handleClearNotes,
     setNotes,
     setStatus,
   })
@@ -732,9 +820,12 @@ function PvpMatchPageContent({ confirmedBoard, onConfirmedBoardChange }) {
                 getNumberHidden={(num) => correctCounts[num] >= 9}
                 getNumberDisabled={(num) => correctCounts[num] >= 9}
                 keypadDisabled={!isActive || submittingMove}
+                undoDisabled={!isActive || submittingMove || loading || !canUndo}
                 clearDisabled={!isActive || submittingMove}
                 noteDisabled={!isActive || submittingMove}
+                showUndo
                 onApplyValue={(num) => applyValue(num, noteMode)}
+                onUndo={undoLastMove}
                 onClearCell={handleClearCell}
                 onHint={handleHintUnavailable}
                 onToggleNoteMode={() => setNoteMode((current) => !current)}

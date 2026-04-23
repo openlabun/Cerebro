@@ -45,8 +45,10 @@ export function useSudokuKeyboardControls({
   isEnabled = true,
   onPauseToggle,
   onToggleNoteMode,
+  onUndo,
   onApplyValue,
   onClearCell,
+  onClearNotes,
   setNotes,
   setStatus,
 }) {
@@ -61,6 +63,18 @@ export function useSudokuKeyboardControls({
       }
 
       if (!isEnabled) return
+
+      if (
+        typeof onUndo === 'function' &&
+        event.key.toLowerCase() === 'z' &&
+        (event.ctrlKey || event.metaKey) &&
+        !event.shiftKey &&
+        !event.altKey
+      ) {
+        event.preventDefault()
+        onUndo()
+        return
+      }
 
       if (
         (event.key === 'ArrowUp' ||
@@ -110,6 +124,11 @@ export function useSudokuKeyboardControls({
         event.preventDefault()
 
         if (noteMode) {
+          if (typeof onClearNotes === 'function') {
+            onClearNotes()
+            return
+          }
+
           setNotes((currentNotes) => {
             const nextNotes = cloneNotes(currentNotes)
             clearNotesCell(nextNotes, row, col)
@@ -129,8 +148,10 @@ export function useSudokuKeyboardControls({
     board,
     isEnabled,
     noteMode,
+    onClearNotes,
     onApplyValue,
     onClearCell,
+    onUndo,
     onPauseToggle,
     onToggleNoteMode,
     puzzle,
