@@ -18,7 +18,7 @@ type AuthRequiredPageProps = {
 };
 
 export default function AuthRequiredPage({
-  title = "Debes iniciar sesión para acceder a esta pagina.",
+  title = "Debes iniciar sesión para acceder a esta página.",
   subtitle = "¿Aún no tienes cuenta?",
   primaryActionLabel = "Crear cuenta",
   secondaryActionLabel = "Iniciar sesión",
