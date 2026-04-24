@@ -439,6 +439,14 @@ export const apiClient = {
     });
   },
 
+  getTournamentResultsByUser(userId: string, accessToken: string) {
+    return request(`torneos/usuarios/${userId}/resultados`, {
+      method: 'GET',
+      baseUrl: 'auth',
+      token: accessToken,
+    });
+  },
+
   createPvpMatch(payload: Record<string, unknown> = {}, accessToken: string) {
     return request('match', {
       method: 'POST',
@@ -478,6 +486,14 @@ export const apiClient = {
   forfeitPvpMatch(matchId: string, accessToken: string) {
     return request(`match/${matchId}/forfeit`, {
       method: 'POST',
+      baseUrl: 'pvp',
+      token: accessToken,
+    });
+  },
+
+  getMyPvpRanking(accessToken: string) {
+    return request('ranking/me', {
+      method: 'GET',
       baseUrl: 'pvp',
       token: accessToken,
     });

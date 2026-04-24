@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { ActivityIndicator, Button } from "react-native-paper";
 
 import { useAppTheme } from "@/constants/theme";
@@ -9,6 +9,7 @@ import { useAppStyles } from "@/hooks/useAppStyles";
 import { apiClient } from "@/services";
 
 import { ProfileCustomizationModal } from "@/components/profile/ProfileCustomizationModal";
+import { ProfileModeStats } from "@/components/profile/ProfileModeStats";
 import { ProfileStats } from "@/components/profile/ProfileStats";
 import {
   type ProfileAvatar,
@@ -24,17 +25,33 @@ type ProfileState = {
   experience: number;
   xpGoal: number;
   streak: number;
-  frame:
-    | "frame-royal"
-    | "frame-arcane"
-    | "frame-neon"
-    | "frame-ember"
-    | "frame-ice"
-    | "frame-inferno"
-    | "frame-bronze"
-    | "frame-silver"
-    | "frame-gold"
-    | "frame-platinum";
+  frame: ProfileFrameKey;
+};
+
+type ProfileModeStatsState = {
+  sudoku: string[];
+  torneos: string[];
+  pvp: string[];
+};
+
+const DEFAULT_PROFILE_MODE_STATS: ProfileModeStatsState = {
+  sudoku: [
+    "Partidas jugadas: -",
+    "Elo: -",
+    "Liga: -",
+  ],
+  torneos: [
+    "Torneos jugados: -",
+    "Participaciones: -",
+    "Mejor puntaje: -",
+    "Puntaje promedio: -",
+  ],
+  pvp: [
+    "Partidas PvP: -",
+    "Victorias: - | Derrotas: -",
+    "ELO PvP: -",
+    "Win rate: -",
+  ],
 };
 
 function toNumber(value: unknown, fallback: number) {
@@ -48,7 +65,7 @@ function xpParaSiguienteNivel(nivel: number) {
   return lvl * 250;
 }
 
-function getFrameByElo(elo = 0): ProfileState["frame"] {
+function getFrameByElo(elo = 0): ProfileFrameKey {
   if (elo >= 301) return "frame-platinum";
   if (elo >= 201) return "frame-gold";
   if (elo >= 101) return "frame-silver";
@@ -56,7 +73,15 @@ function getFrameByElo(elo = 0): ProfileState["frame"] {
   return "frame-royal";
 }
 
-function isProfileFrame(value: unknown): value is ProfileState["frame"] {
+function getLeagueByElo(elo = 0) {
+  if (elo >= 301) return "Platino";
+  if (elo >= 201) return "Oro";
+  if (elo >= 101) return "Plata";
+  if (elo >= 0) return "Bronce";
+  return "-";
+}
+
+function isProfileFrame(value: unknown): value is ProfileFrameKey {
   return (
     value === "frame-royal" ||
     value === "frame-arcane" ||
@@ -124,9 +149,7 @@ function getJoinedName(
 
   const firstName = getStringCandidate(source, firstNameKeys);
   const lastName = getStringCandidate(source, lastNameKeys);
-  const joined = `${firstName} ${lastName}`.trim();
-
-  return joined;
+  return `${firstName} ${lastName}`.trim();
 }
 
 function getProfileDisplayName(
@@ -213,6 +236,9 @@ export default function ProfilePage() {
   const { accessToken, isAuthenticated, isLoading, logout, user } = useAuth();
   const theme = useAppTheme();
   const ui = useAppStyles();
+  const { width } = useWindowDimensions();
+  const compact = width < 390;
+  const currentUserId = String(user?.sub || user?.id || "").trim();
   const sessionDisplayName = getProfileDisplayName(
     null,
     (user ?? null) as Record<string, unknown> | null,
@@ -223,6 +249,9 @@ export default function ProfilePage() {
   const [selectedFrame, setSelectedFrame] = useState<ProfileFrameKey | null>(null);
   const [customizationVisible, setCustomizationVisible] = useState(false);
   const [customizationTab, setCustomizationTab] = useState<"avatar" | "frame">("avatar");
+  const [modeStats, setModeStats] = useState<ProfileModeStatsState>(
+    DEFAULT_PROFILE_MODE_STATS,
+  );
   const [profile, setProfile] = useState<ProfileState>({
     displayName: sessionDisplayName,
     level: 1,
@@ -246,6 +275,12 @@ export default function ProfilePage() {
   }, [sessionDisplayName]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setModeStats(DEFAULT_PROFILE_MODE_STATS);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadProfile() {
@@ -253,27 +288,35 @@ export default function ProfilePage() {
 
       try {
         setProfileLoading(true);
-        const [profileResponseRaw, sudokuStatsRaw] = await Promise.all([
+        const [
+          profileResponseRaw,
+          sudokuStatsRaw,
+          tournamentResultsRaw,
+          pvpRankingRaw,
+        ] = await Promise.all([
           apiClient.getMyProfile(accessToken).catch(() => null),
-          apiClient
-            .getMyGameStats(accessToken, GAME_ID_SUDOKU)
-            .catch(() => null),
+          apiClient.getMyGameStats(accessToken, GAME_ID_SUDOKU).catch(() => null),
+          currentUserId
+            ? apiClient
+                .getTournamentResultsByUser(currentUserId, accessToken)
+                .catch(() => [])
+            : Promise.resolve([]),
+          apiClient.getMyPvpRanking(accessToken).catch(() => null),
         ]);
+
         const profileResponse = (profileResponseRaw ?? null) as Record<
           string,
           unknown
         > | null;
-        const sudokuStats = (sudokuStatsRaw ?? null) as Record<
-          string,
-          unknown
-        > | null;
+        const sudokuStats = (sudokuStatsRaw ?? null) as Record<string, unknown> | null;
+        const tournamentResults = Array.isArray(tournamentResultsRaw)
+          ? tournamentResultsRaw
+          : [];
+        const pvpRanking = (pvpRankingRaw ?? null) as Record<string, unknown> | null;
 
         if (cancelled) return;
 
-        const level = Math.max(
-          1,
-          Math.floor(toNumber(profileResponse?.nivel, 1)),
-        );
+        const level = Math.max(1, Math.floor(toNumber(profileResponse?.nivel, 1)));
         const experience = Math.max(
           0,
           Math.floor(toNumber(profileResponse?.experiencia, 0)),
@@ -282,6 +325,48 @@ export default function ProfilePage() {
           0,
           Math.floor(toNumber(profileResponse?.rachaActual, 0)),
         );
+        const sudokuElo = Math.max(0, Math.floor(toNumber(sudokuStats?.elo, 0)));
+        const sudokuGamesPlayed = Math.max(
+          0,
+          Math.floor(toNumber(sudokuStats?.partidasJugadas, 0)),
+        );
+
+        const uniqueTournamentCount = new Set(
+          tournamentResults
+            .map((item) =>
+              String((item as Record<string, unknown>)?.torneoId || "").trim(),
+            )
+            .filter(Boolean),
+        ).size;
+        const participaciones = tournamentResults.length;
+        const tournamentScores = tournamentResults
+          .map((item) => Number((item as Record<string, unknown>)?.puntaje))
+          .filter((value) => Number.isFinite(value));
+        const bestTournamentScore = tournamentScores.length
+          ? Math.max(...tournamentScores)
+          : null;
+        const averageTournamentScore = tournamentScores.length
+          ? Math.round(
+              tournamentScores.reduce((total, value) => total + value, 0) /
+                tournamentScores.length,
+            )
+          : null;
+
+        const pvpElo = Number(pvpRanking?.elo);
+        const pvpVictories = Number(pvpRanking?.victorias);
+        const pvpDefeats = Number(pvpRanking?.derrotas);
+        const hasValidPvpStats =
+          Number.isFinite(pvpElo) &&
+          Number.isFinite(pvpVictories) &&
+          Number.isFinite(pvpDefeats);
+        const pvpTotal = hasValidPvpStats
+          ? Math.max(0, pvpVictories + pvpDefeats)
+          : 0;
+        const pvpWinRate =
+          hasValidPvpStats && pvpTotal > 0
+            ? `${((pvpVictories / pvpTotal) * 100).toFixed(1)}%`
+            : "-";
+
         setProfile({
           displayName:
             getProfileDisplayName(
@@ -293,6 +378,28 @@ export default function ProfilePage() {
           xpGoal: xpParaSiguienteNivel(level),
           streak,
           frame: getProfileFrame(profileResponse, sudokuStats),
+        });
+
+        setModeStats({
+          sudoku: [
+            `Partidas jugadas: ${sudokuGamesPlayed}`,
+            `Elo: ${sudokuElo}`,
+            `Liga: ${getLeagueByElo(sudokuElo)}`,
+          ],
+          torneos: [
+            `Torneos jugados: ${uniqueTournamentCount}`,
+            `Participaciones: ${participaciones}`,
+            `Mejor puntaje: ${bestTournamentScore ?? "-"}`,
+            `Puntaje promedio: ${averageTournamentScore ?? "-"}`,
+          ],
+          pvp: hasValidPvpStats
+            ? [
+                `Partidas PvP: ${pvpTotal}`,
+                `Victorias: ${pvpVictories} | Derrotas: ${pvpDefeats}`,
+                `ELO PvP: ${pvpElo}`,
+                `Win rate: ${pvpWinRate}`,
+              ]
+            : DEFAULT_PROFILE_MODE_STATS.pvp,
         });
       } finally {
         if (!cancelled) {
@@ -306,7 +413,7 @@ export default function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, isAuthenticated, sessionDisplayName, user]);
+  }, [accessToken, currentUserId, isAuthenticated, sessionDisplayName, user]);
 
   if (isLoading) {
     return (
@@ -343,7 +450,19 @@ export default function ProfilePage() {
       end={ui.gradientEnd}
       style={ui.screenStyle}
     >
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          {
+            gap: compact ? 14 : 16,
+            paddingHorizontal: compact ? 12 : 16,
+            paddingTop: compact ? 20 : 24,
+            paddingBottom: compact ? 16 : 24,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {profileLoading ? (
           <View style={styles.inlineLoading}>
             <ActivityIndicator size="small" color={theme.colors.primary} />
@@ -373,7 +492,9 @@ export default function ProfilePage() {
         >
           Cerrar sesion
         </Button>
-      </View>
+
+        <ProfileModeStats loading={profileLoading} stats={modeStats} />
+      </ScrollView>
 
       <ProfileCustomizationModal
         visible={customizationVisible}
@@ -396,11 +517,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  content: {
+  scroll: {
     flex: 1,
+  },
+  content: {
     gap: 16,
     paddingHorizontal: 16,
     paddingTop: 24,
+    paddingBottom: 32,
   },
   inlineLoading: {
     alignItems: "center",
