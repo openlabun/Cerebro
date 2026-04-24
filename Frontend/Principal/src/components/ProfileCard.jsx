@@ -6,12 +6,21 @@ import AvatarModal from './profile/AvatarModal.jsx'
 import BadgeModal from './profile/BadgeModal.jsx'
 import StreakModal from './profile/StreakModal.jsx'
 
-function ProfileCard({ profileData, profileModeStats, isAuthenticated, loading, unlockedBadges: parentUnlockedBadges, selectedFrame: parentSelectedFrame }) {
+function ProfileCard({
+  profileData,
+  profileModeStats,
+  isAuthenticated,
+  loading,
+  unlockedBadges: parentUnlockedBadges,
+  selectedFrame: parentSelectedFrame,
+  activeMode,
+  onModeChange,
+  onFrameChange,
+}) {
   const [selectedAvatar, setSelectedAvatar] = useState('♔')
   const [selectedFrame, setSelectedFrame] = useState(parentSelectedFrame || 'frame-royal')
   const [selectedBadges, setSelectedBadges] = useState(Array(6).fill(null))
   const [unlockedBadges, setUnlockedBadges] = useState(new Set(parentUnlockedBadges || []))
-  const [activeMode, setActiveMode] = useState('sudoku')
   const [showAvatarModal, setShowAvatarModal] = useState(false)
   const [showBadgeModal, setShowBadgeModal] = useState(false)
   const [activeBadgeSlot, setActiveBadgeSlot] = useState(null)
@@ -88,7 +97,7 @@ function ProfileCard({ profileData, profileModeStats, isAuthenticated, loading, 
         <ModeStats
           activeMode={activeMode}
           stats={profileModeStats}
-          onModeChange={setActiveMode}
+          onModeChange={onModeChange}
         />
       </div>
 
@@ -97,7 +106,7 @@ function ProfileCard({ profileData, profileModeStats, isAuthenticated, loading, 
         onClose={() => setShowAvatarModal(false)} 
         onSelect={setSelectedAvatar} 
         selectedFrame={selectedFrame} 
-        onFrameChange={setSelectedFrame} 
+        onFrameChange={onFrameChange || setSelectedFrame} 
         isFrameUnlocked={(frame) => {
           const streak = Number(profileData?.rachaActual || 0)
           const min = Number(frame?.minStreak || 0)

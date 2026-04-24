@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { apiClient } from '../services/apiClient.js'
 import { ACHIEVEMENT_ID_KEY_MAP } from '../lib/achievementIds.js'
+import {
+  formatTournamentState,
+  getTournamentOwnerLabel,
+} from '../lib/tournaments.js'
 import ProfileCard from '../components/ProfileCard.jsx'
 import '../styles/profile.css'
 
@@ -69,6 +74,14 @@ function getProfileDisplayName(userObj) {
   return `Jugador#${String(rawId).slice(-4)}`
 }
 
+function formatElapsedSeconds(value) {
+  const total = Number(value)
+  if (!Number.isFinite(total) || total < 0) return 'Sin registro'
+  const minutes = Math.floor(total / 60)
+  const seconds = Math.floor(total % 60)
+  return `${minutes}m ${String(seconds).padStart(2, '0')}s`
+}
+
 function ProfilePage() {
   const { isAuthenticated, user, accessToken } = useAuth()
   const currentUserId = String(user?.sub || user?.id || '').trim()
@@ -79,10 +92,28 @@ function ProfilePage() {
     experiencia: 680,
     rachaActual: 0,
   })
-  const [profileModeStats, setProfileModeStats] = useState({ ...DEFAULT_PROFILE_MODE_STATS })
+  const [profileModeStats, setProfileModeStats] = useState({
+    ...DEFAULT_PROFILE_MODE_STATS,
+  })
   const [unlockedBadges, setUnlockedBadges] = useState(new Set())
   const [selectedFrame, setSelectedFrame] = useState('frame-royal')
+
+  // Persistir el marco seleccionado en el backend
+  const handleFrameChange = async (newFrame) => {
+    setSelectedFrame(newFrame)
+    if (isAuthenticated && accessToken) {
+      try {
+        await apiClient.updateProfileFrame(accessToken, newFrame)
+      } catch (e) {
+        // Opcional: mostrar error al usuario
+        // console.error('No se pudo guardar el marco', e)
+      }
+    }
+  }
   const [loading, setLoading] = useState(false)
+  const [tournamentHistory, setTournamentHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [activeMode, setActiveMode] = useState('sudoku')
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -93,6 +124,9 @@ function ProfilePage() {
         rachaActual: 0,
       })
       setProfileModeStats({ ...DEFAULT_PROFILE_MODE_STATS })
+      setTournamentHistory([])
+      setHistoryLoading(false)
+      setActiveMode('sudoku')
       return
     }
 
@@ -138,6 +172,7 @@ function ProfilePage() {
     }
 
     loadTournamentStats()
+    loadTournamentHistory()
     loadPvpStats()
   }, [isAuthenticated, accessToken, currentUserId])
 
@@ -148,6 +183,7 @@ function ProfilePage() {
       loadProfileDataFromApi()
       loadSudokuStats()
       loadTournamentStats()
+      loadTournamentHistory()
       loadPvpStats()
       loadRemoteAchievements()
     }
@@ -167,6 +203,9 @@ function ProfilePage() {
           experiencia: perfil.experiencia ?? prev.experiencia,
           rachaActual: perfil.rachaActual ?? prev.rachaActual,
         }))
+        if (perfil.marco) {
+          setSelectedFrame(perfil.marco)
+        }
       }
     } catch {
       // Keep current values on failure.
@@ -181,21 +220,27 @@ function ProfilePage() {
   const loadSudokuStats = async () => {
     setLoading(true)
     try {
-      const stats = await apiClient.getMyGameStats(accessToken, GAME_ID_SUDOKU).catch(() => null)
+      const stats = await apiClient.getMyGameStats(accessToken, GAME_ID_SUDOKU).catch(
+        () => null,
+      )
 
       if (stats) {
         const elo = Number(stats.elo ?? 0)
         const partidasJugadas = Number(stats.partidasJugadas ?? 0)
         const liga =
-          elo >= 301 && elo <= 400
-            ? 'Platino'
-            : elo >= 201 && elo <= 300
-              ? 'Oro'
-              : elo >= 101 && elo <= 200
-                ? 'Plata'
-                : elo >= 0 && elo <= 100
-                  ? 'Bronce'
-                  : '-'
+          elo >= 2501
+            ? 'Maestro'
+            : elo >= 2001
+              ? 'Diamante'
+              : elo >= 1501
+                ? 'Platino'
+                : elo >= 1001
+                  ? 'Oro'
+                  : elo >= 501
+                    ? 'Plata'
+                    : elo >= 0
+                      ? 'Bronce'
+                      : '-'
 
         const frame = getFrameByElo(elo)
         const localUnlocked = new Set(getUnlockedKeysByRules(partidasJugadas, elo))
@@ -266,7 +311,11 @@ function ProfilePage() {
       const victorias = Number(ranking?.victorias)
       const derrotas = Number(ranking?.derrotas)
 
-      if (!Number.isFinite(elo) || !Number.isFinite(victorias) || !Number.isFinite(derrotas)) {
+      if (
+        !Number.isFinite(elo) ||
+        !Number.isFinite(victorias) ||
+        !Number.isFinite(derrotas)
+      ) {
         setProfileModeStats((prev) => ({
           ...prev,
           pvp: [...DEFAULT_PROFILE_MODE_STATS.pvp],
@@ -294,6 +343,19 @@ function ProfilePage() {
     }
   }
 
+  const loadTournamentHistory = async () => {
+    setHistoryLoading(true)
+
+    try {
+      const rows = await apiClient.getMyTournamentHistory(accessToken).catch(() => [])
+      setTournamentHistory(Array.isArray(rows) ? rows : [])
+    } catch {
+      setTournamentHistory([])
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
   return (
     <main className="profile-page">
       <div className="game-header">
@@ -307,7 +369,70 @@ function ProfilePage() {
         loading={loading}
         unlockedBadges={unlockedBadges}
         selectedFrame={selectedFrame}
+        activeMode={activeMode}
+        onModeChange={setActiveMode}
+        onFrameChange={handleFrameChange}
       />
+
+      {isAuthenticated && activeMode === 'torneos' ? (
+        <section className="board-card profile-history-panel">
+          <div className="profile-history-head">
+            <div>
+              <p className="profile-history-kicker">Torneos</p>
+              <h3>Resultados de torneos donde participaste</h3>
+            </div>
+          </div>
+
+          {historyLoading ? (
+            <p className="profile-history-empty">Cargando tu historial de torneos...</p>
+          ) : tournamentHistory.length ? (
+            <div className="profile-history-grid">
+              {tournamentHistory.map((tournament) => (
+                <article
+                  key={tournament._id || `${tournament.nombre}-${tournament.fechaFin}`}
+                  className="profile-history-card"
+                >
+                  <div className="profile-history-card-head">
+                    <p className="profile-history-state">
+                      {formatTournamentState(tournament?.estado)}
+                    </p>
+                    <h4>{tournament?.nombre || 'Torneo sin nombre'}</h4>
+                  </div>
+
+                  <dl className="profile-history-meta">
+                    <div>
+                      <dt>Creador</dt>
+                      <dd>{getTournamentOwnerLabel(tournament, user)}</dd>
+                    </div>
+                    <div>
+                      <dt>Puntaje</dt>
+                      <dd>{tournament?.miPuntaje ?? 'Sin registro'}</dd>
+                    </div>
+                    <div>
+                      <dt>Tiempo</dt>
+                      <dd>{formatElapsedSeconds(tournament?.miTiempo)}</dd>
+                    </div>
+                    <div>
+                      <dt>Puesto</dt>
+                      <dd>{tournament?.miPosicion ? `#${tournament.miPosicion}` : 'Sin puesto'}</dd>
+                    </div>
+                  </dl>
+
+                  <div className="profile-history-actions">
+                    <Link className="btn ghost" to={`/torneos/${tournament._id}`}>
+                      Ver detalle del torneo
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="profile-history-empty">
+              Cuando participes en torneos que ya finalizaron, aparecerán aquí.
+            </p>
+          )}
+        </section>
+      ) : null}
     </main>
   )
 }
