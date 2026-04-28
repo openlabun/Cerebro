@@ -1,16 +1,31 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import { StyleSheet, View } from "react-native";
 import { Button, Text } from "react-native-paper";
 
 import { useAppTheme } from "@/constants/theme";
+import { useAuth } from "@/context";
 import { useAppStyles } from "@/hooks/useAppStyles";
+import AuthRequiredPage from "@/pages/AuthRequiredPage";
+import { appRoutes } from "@/routes";
 
 export default function PvpPage() {
+  const router = useRouter();
   const theme = useAppTheme();
   const ui = useAppStyles();
   const headerHeight = useHeaderHeight();
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return (
+      <AuthRequiredPage
+        title="Debes iniciar sesion para jugar PvP."
+        subtitle="Crea tu cuenta o inicia sesion para crear salas y unirte con codigo."
+      />
+    );
+  }
 
   return (
     <LinearGradient
@@ -20,55 +35,46 @@ export default function PvpPage() {
       end={ui.gradientEnd}
       style={ui.screenStyle}
     >
-      <View
-        style={[
-          styles.content,
-          { paddingTop: headerHeight + 12 },
-        ]}
-      >
-          <View style={styles.copyBlock}>
-            <MaterialCommunityIcons
-              name="sword-cross"
-              size={34}
-              color={theme.colors.primary}
-              style={styles.eyebrowIcon}
-            />
-            <Text style={[styles.title, { color: theme.colors.onBackground }]}>
-              Reta a otro jugador
-            </Text>
-            <Text
-              style={[
-                styles.description,
-                { color: theme.colors.onSurfaceVariant },
-              ]}
-            >
-              Crea una sala privada o unete rapidamente con un codigo. Ambos
-              resuelven el mismo sudoku. Gana quien termine primero con mejor
-              precisión.
-            </Text>
-          </View>
+      <View style={[styles.content, { paddingTop: headerHeight + 12 }]}>
+        <View style={styles.copyBlock}>
+          <MaterialCommunityIcons
+            name="sword-cross"
+            size={34}
+            color={theme.colors.primary}
+            style={styles.eyebrowIcon}
+          />
+          <Text style={[styles.title, { color: theme.colors.onBackground }]}>
+            Reta a otro jugador
+          </Text>
+          <Text
+            style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
+          >
+            Crea una sala privada o unete rapidamente con un codigo. Ambos
+            resuelven el mismo sudoku. Gana quien termine primero con mejor
+            precision.
+          </Text>
+        </View>
 
-          <View style={styles.actions}>
-            <Button
-              mode="contained"
-              contentStyle={styles.primaryButtonContent}
-              style={styles.primaryButton}
-            >
-              Crear sala
-            </Button>
+        <View style={styles.actions}>
+          <Button
+            mode="contained"
+            onPress={() => router.push(appRoutes.pvpCreate)}
+            contentStyle={styles.primaryButtonContent}
+            style={styles.primaryButton}
+          >
+            Crear sala
+          </Button>
 
-            <Button
-              mode="outlined"
-              textColor={theme.colors.primary}
-              contentStyle={styles.secondaryButtonContent}
-              style={[
-                styles.secondaryButton,
-                { borderColor: theme.colors.primary },
-              ]}
-            >
-              Unirme por codigo
-            </Button>
-          </View>
+          <Button
+            mode="outlined"
+            onPress={() => router.push(appRoutes.pvpJoin)}
+            textColor={theme.colors.primary}
+            contentStyle={styles.secondaryButtonContent}
+            style={[styles.secondaryButton, { borderColor: theme.colors.primary }]}
+          >
+            Unirme por codigo
+          </Button>
+        </View>
       </View>
     </LinearGradient>
   );
