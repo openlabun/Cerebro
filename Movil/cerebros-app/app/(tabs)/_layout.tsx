@@ -40,6 +40,30 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="pvp"
+        options={{
+          title: 'PvP',
+          headerShown: true,
+          headerTransparent: true,
+          headerTitle: 'PvP',
+          headerTintColor: theme.dark ? '#ffffff' : '#000000',
+          headerTitleStyle: {
+            color: theme.dark ? '#ffffff' : '#000000',
+          },
+          headerShadowVisible: false,
+          headerStyle: {
+            backgroundColor: 'transparent',
+          },
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons
+              name="sword-cross"
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',

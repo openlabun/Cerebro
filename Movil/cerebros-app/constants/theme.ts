@@ -17,9 +17,9 @@ const palette = {
   lightSurface: '#ffffff',
   darkSurface: '#2b313b',
   lightPrimary: '#76abae',
-  darkPrimary: '#d8e2ff',
+  darkPrimary: '#76abae',
   lightAccent: '#76abae',
-  darkAccent: '#9fb7ff',
+  darkAccent: '#76abae',
 };
 
 export const lightTheme = {
