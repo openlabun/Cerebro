@@ -2,6 +2,7 @@ export const appRoutes = {
   confirmEmail: "/confirm-email" as const,
   home: "/index" as const,
   login: "/login" as const,
+  pvp: "/pvp" as const,
   profile: "/profile" as const,
   pvpCreate: "/pvp-create" as const,
   pvpJoin: "/pvp-join" as const,
