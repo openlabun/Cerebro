@@ -854,6 +854,37 @@ main,
   margin-top: 0.15rem;
 }
 
+.auth-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.auth-checkbox input {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.18rem;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+}
+
+.auth-checkbox span {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.auth-checkbox a {
+  color: var(--primary-dark);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.auth-checkbox a:hover {
+  text-decoration: underline;
+}
+
 .auth-feedback {
   margin: 0.9rem 0 0;
   min-height: 1.5rem;
@@ -890,6 +921,84 @@ main,
 
 .auth-links a:hover {
   text-decoration: underline;
+}
+
+.legal-page {
+  display: grid;
+  gap: 1rem;
+  padding-top: 0.5rem;
+}
+
+.legal-page-header {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+}
+
+.legal-page-header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.legal-page-copy,
+.legal-page-updated {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.legal-card {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.legal-section {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.legal-section h2 {
+  margin: 0;
+}
+
+.legal-section ul,
+.legal-section ol {
+  margin: 0;
+  padding-left: 1.3rem;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.legal-section li + li {
+  margin-top: 0.45rem;
+}
+
+.legal-section p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.legal-definition-list {
+  margin: 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.legal-definition-item {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.legal-definition-item dt {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.legal-definition-item dd {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.7;
 }
 
 .game-header {
