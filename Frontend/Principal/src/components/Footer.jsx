@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import logoCerebroDark from '../assets/logo-cerebro.png'
 import logoCerebroLight from '../assets/logo-cerebro-light.png'
 
@@ -12,6 +13,8 @@ function Footer() {
         </span>
         <span className="footer-sep">·</span>
         <span>Universidad del Norte</span>
+        <span className="footer-sep">·</span>
+        <Link to="/politica-de-privacidad">Politica de privacidad y terminos de uso</Link>
         <span className="footer-sep">·</span>
         <a href="https://github.com/openlabun/Cerebro" target="_blank" rel="noreferrer">
           GitHub

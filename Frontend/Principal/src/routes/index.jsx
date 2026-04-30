@@ -9,6 +9,7 @@ import SimulationPage from '../pages/SimulationPage.jsx'
 import PvpMatchPage from '../pages/PvpMatchPage.jsx'
 import SudokuPage from '../pages/SudokuPage.jsx'
 import ProfilePage from '../pages/ProfilePage.jsx'
+import PrivacyPolicyPage from '../pages/PrivacyPolicyPage.jsx'
 import TournamentsPage from '../pages/TournamentsPage.jsx'
 import TournamentManagePage from '../pages/TournamentManagePage.jsx'
 import TournamentSudokuPage from '../pages/TournamentSudokuPage.jsx'
@@ -43,6 +44,10 @@ const router = createBrowserRouter(
         {
           path: 'reset-password',
           element: <ResetPasswordPage />,
+        },
+        {
+          path: 'politica-de-privacidad',
+          element: <PrivacyPolicyPage />,
         },
         {
           path: 'sudoku',

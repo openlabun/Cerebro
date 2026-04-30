@@ -13,6 +13,7 @@ function SignUpPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    acceptedPrivacy: false,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState('Escribe y confirma tu contraseña.')
@@ -24,8 +25,8 @@ function SignUpPage() {
   }, [isAuthenticated, navigate])
 
   function handleChange(event) {
-    const { name, value } = event.target
-    setForm((current) => ({ ...current, [name]: value }))
+    const { name, type, value, checked } = event.target
+    setForm((current) => ({ ...current, [name]: type === 'checkbox' ? checked : value }))
   }
 
   function validateForm() {
@@ -39,6 +40,10 @@ function SignUpPage() {
 
     if (form.password !== form.confirmPassword) {
       return 'Las contraseñas no coinciden.'
+    }
+
+    if (!form.acceptedPrivacy) {
+      return 'Debes aceptar la Politica de Privacidad y los Terminos de Uso para crear la cuenta.'
     }
 
     return ''
@@ -147,6 +152,22 @@ function SignUpPage() {
                 placeholder="Repite tu contraseña"
                 value={form.confirmPassword}
               />
+
+              <label className="auth-checkbox">
+                <input
+                  checked={form.acceptedPrivacy}
+                  name="acceptedPrivacy"
+                  onChange={handleChange}
+                  type="checkbox"
+                />
+                <span>
+                  Acepto la{' '}
+                  <Link to="/politica-de-privacidad" target="_blank" rel="noreferrer">
+                    Politica de Privacidad y los Terminos de Uso
+                  </Link>
+                  .
+                </span>
+              </label>
 
               <p className={`auth-feedback auth-feedback--inline${tone !== 'info' ? ` ${tone}` : ''}`}>
                 {message}
