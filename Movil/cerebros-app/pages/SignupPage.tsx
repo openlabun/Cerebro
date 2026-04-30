@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
-import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import { Button, Checkbox, HelperText, Text, TextInput } from 'react-native-paper';
 
 import { PasswordField } from '@/components/PasswordField';
 import { useAppTheme } from '@/constants/theme';
@@ -27,8 +27,10 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const canSubmit = acceptedTerms && !submitting;
 
   useEffect(() => {
     if (isAuthenticated && isVerified === false) {
@@ -54,6 +56,11 @@ export default function SignupPage() {
 
     if (password !== confirmPassword) {
       setMessage('Las contraseñas no coinciden.');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setMessage('Debes aceptar la Politica de Privacidad y los Terminos de Uso.');
       return;
     }
 
@@ -132,6 +139,29 @@ export default function SignupPage() {
             textContentType="password"
           />
 
+          <View style={styles.termsRow}>
+            <Checkbox
+              status={acceptedTerms ? 'checked' : 'unchecked'}
+              onPress={() => {
+                setAcceptedTerms((currentValue) => !currentValue);
+                setMessage('');
+              }}
+              disabled={submitting}
+            />
+
+            <View style={styles.termsCopy}>
+              <Text style={[styles.termsText, { color: theme.colors.onSurfaceVariant }]}>
+                Acepto la{' '}
+                <Text
+                  style={[styles.termsLink, { color: theme.colors.primary }]}
+                  onPress={() => router.push(appRoutes.tos)}
+                >
+                  Politica de Privacidad y los Terminos de Uso
+                </Text>
+              </Text>
+            </View>
+          </View>
+
           <HelperText type="error" visible={Boolean(message)}>
             {message || ' '}
           </HelperText>
@@ -140,7 +170,7 @@ export default function SignupPage() {
             mode="contained"
             onPress={handleSubmit}
             loading={submitting}
-            disabled={submitting}
+            disabled={!canSubmit}
             contentStyle={styles.primaryActionContent}
           >
             Crear cuenta
@@ -183,5 +213,21 @@ const styles = StyleSheet.create({
   },
   primaryActionContent: {
     minHeight: 52,
+  },
+  termsCopy: {
+    flex: 1,
+    paddingTop: 6,
+  },
+  termsLink: {
+    fontWeight: '700',
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: -6,
+  },
+  termsText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

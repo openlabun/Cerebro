@@ -7,6 +7,7 @@ export const appRoutes = {
   pvpCreate: "/pvp-create" as const,
   pvpJoin: "/pvp-join" as const,
   signup: "/signup" as const,
+  tos: "/tos" as const,
   tournamentStats: "/tournament-stats" as const,
 };
 
@@ -42,6 +43,10 @@ export const rootStackScreens = [
   {
     name: "signup" as const,
     options: { title: "Crear cuenta" },
+  },
+  {
+    name: "tos" as const,
+    options: { title: "Politica de Privacidad y Terminos de Uso" },
   },
   {
     name: "tournament-stats" as const,

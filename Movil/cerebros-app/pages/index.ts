@@ -8,4 +8,5 @@ export { default as PvpJoinByCodePage } from './PvpJoinByCodePage';
 export { default as PvpMatchLobbyPage } from './PvpMatchLobbyPage';
 export { default as PvpPage } from './PvpPage';
 export { default as SignupPage } from './SignupPage';
+export { default as TermsOfServicePage } from './TermsOfServicePage';
 export { default as TournamentStatsPage } from './TournamentStatsPage';
